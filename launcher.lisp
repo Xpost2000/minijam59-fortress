@@ -44,6 +44,29 @@
                               (color-b color)
                               (color-a color)))
 
+(defun glyph-y-advance (glyph-table character)
+  (let ((character (gethash character glyph-table)))
+    (sdl2:texture-height character)))
+
+(defun glyph-x-advance (glyph-table character)
+  (let ((character (gethash character glyph-table)))
+    (sdl2:texture-width character)))
+
+(defun render-glyph-texture (renderer font character)
+  (let* ((surface (sdl2-ttf:render-utf8-blended
+                   font
+                   (string (code-char
+                            (if (= character 0) 32 character)))
+                   255 255 255 255)))
+    (sdl2:create-texture-from-surface renderer surface)))
+
+(defun build-font-glyph-table (renderer font)
+  (let ((glyph-table (make-hash-table)))
+    (dotimes (character 128)
+      (setf (gethash (code-char character) glyph-table)
+            (render-glyph-texture renderer font character)))
+    glyph-table))
+
 (defun draw-texture (renderer texture &key
                                         dest
                                         (src nil)
@@ -65,6 +88,31 @@
     (when center (sdl2:free-point center-sdl-point))
     (when dest (sdl2:free-rect dest-sdl-rect))
     (when src (sdl2:free-rect src-sdl-rect))))
+
+(defun draw-character (renderer character glyph-table position &optional (color +color-white+))
+  (let* ((character-glyph (gethash character glyph-table))
+         (character-rect (make-rectangle
+                          :x (vec2-x position) :y (vec2-y position)
+                          :w (sdl2:texture-width character-glyph)
+                          :h (sdl2:texture-height character-glyph))))
+    (draw-texture renderer character-glyph
+                  :dest character-rect
+                  :color color)))
+
+(defun draw-string (renderer string glyph-table position &optional (color +color-white+))
+  (let ((start-position position)
+        (current-position position))
+    (dotimes (index (length string))
+      (let ((character (char string index)))
+        (case character
+          (#\Tab (incf (vec2-x current-position) 4))
+          (#\Newline (progn
+                       (incf (vec2-y current-position))
+                       (setf (vec2-x current-position)
+                             (vec2-x start-position))))
+          (otherwise
+           (draw-character renderer character glyph-table current-position color)
+           (incf (vec2-x current-position) (glyph-x-advance glyph-table character))))))))
 
 (defun draw-filled-rectangle (renderer rectangle &optional (color +color-white+))
   (set-draw-color renderer color)
@@ -106,7 +154,9 @@
                            resolution-picker-window
                            :flags '(:accelerated))
         (let* ((splash-image-surface (sdl2-image:load-image "launcher-splash.png"))
-               (splash-image-texture (sdl2:create-texture-from-surface renderer splash-image-surface)))
+               (splash-image-texture (sdl2:create-texture-from-surface renderer splash-image-surface))
+               (test-font (sdl2-ttf:open-font "resources/fonts/Anonymous Pro.ttf" 64))
+               (test-font-glyphs (build-font-glyph-table renderer test-font)))
           (sdl2:with-event-loop (:method :poll)
             (:mousemotion (:x mouse-x
                            :y mouse-y)
@@ -151,11 +201,14 @@
                                    :angle 180
                                    :color +color-red+)
 
+                     (draw-string renderer "Hello World!" test-font-glyphs (make-vec2 :x 0 :y 0))
+
                      (sdl2:render-present renderer)
                      (setf delta-time
                            (calculate-frame-delta-time start-time
                                                        (sdl2:get-ticks)))))
             (:quit ()
+                   (sdl2-ttf:close-font test-font)
                    (sdl2:destroy-texture splash-image-texture)
                    (sdl2:free-surface splash-image-surface)
                    ;; set flags for real game window and go.
