@@ -5,10 +5,10 @@
 
 (defun rectangle->sdl-rect (rectangle)
   (sdl2:make-rect
-   (rectangle-x rectangle)
-   (rectangle-y rectangle)
-   (rectangle-w rectangle)
-   (rectangle-h rectangle)))
+   (truncate (rectangle-x rectangle))
+   (truncate (rectangle-y rectangle))
+   (truncate (rectangle-w rectangle))
+   (truncate (rectangle-h rectangle))))
 
 (defun rectangle-position (rectangle)
   (vec2 (rectangle-x rectangle) (rectangle-y rectangle)))

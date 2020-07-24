@@ -5,5 +5,5 @@
 
 (defun vec2->sdl-point (vec)
   (sdl2:make-point
-   (vec2-x vec)
-   (vec2-y vec)))
+   (truncate (vec2-x vec))
+   (trunacte (vec2-y vec))))

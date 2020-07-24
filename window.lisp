@@ -1,6 +1,6 @@
 (in-package :mjgame)
 
-(defun calculate-frame-delta-time (start end) (* (- end start) 0.0001))
+(defun calculate-frame-delta-time (start end) (* (- end start) 0.001))
 
 ;; eh
 ;; I'm sure there's a better way to do this.
@@ -25,6 +25,20 @@
                     :initarg window-instance)
    (renderer :accessor renderer
              :initarg :renderer)))
+
+;; I would do a setf function but this is more consistent
+(defun window-set-fullscreen (window fullscreen)
+  (setf (fullscreen window) fullscreen)
+  (sdl2:set-window-fullscreen (window window) (fullscreen window)))
+
+(defun window-set-resolution (window width height)
+  (setf (width window) width)
+  (setf (height window) height)
+  (if (fullscreen window)
+      (sdl2:set-window-size (window window)
+                            (width window)
+                            (height window))
+      (error "fullscreen change not handled?")))
 
 (defgeneric window-frame (window delta-time))
 (defgeneric window-setup (window))

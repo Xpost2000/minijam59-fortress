@@ -64,6 +64,18 @@
            :initarg images
            :initform (make-hash-table))))
 
+(defun find-font (renderer font-path)
+  (let ((font (gethash font-path (fonts renderer))))
+    (unless font 
+      (error (format nil "Could not find font ~a" font-path)))
+    font))
+
+(defun find-image (renderer image-path)
+  (let ((image (gethash font-path (images renderer))))
+    (unless image 
+      (error (format nil "Could not find image ~a" image-path)))
+    font))
+
 (defmethod initialize-instance :after ((renderer renderer) &key)
   (multiple-value-bind (width height) (sdl2:get-window-size (screen renderer))
     (setf (renderer renderer) (sdl2:create-renderer (screen renderer) -1 '(:accelerated)))
@@ -77,14 +89,14 @@
     (destroy-font v))
   (sdl2:destroy-renderer (renderer renderer)))
 
+;; does not hash by name & size... Should be hashing by size as well...
 (defun load-font (renderer font-path height)
   (let ((font (make-instance 'font-resource
                              :renderer (renderer renderer)
                              :font-height height
                              :font (sdl2-ttf:open-font font-path height))))
     (setf (gethash font-path (fonts renderer)) font)))
-;; returns texture object itself... Which is a pretty bad idea...
-;; but I don't think I'm going to break that much stuff... hopefully
+
 (defun load-image (renderer image-name)
   (let* ((surface (sdl2-image:load-image image-name))
          (texture (sdl2:create-texture-from-surface (renderer renderer) surface)))
@@ -100,6 +112,9 @@
 
 (defun present-frame (renderer)
   (sdl2:render-present (renderer renderer)))
+
+(defun set-blend-mode (renderer mode)
+  (sdl2:set-render-draw-blend-mode (renderer renderer) mode))
 
 (defun clear-color (renderer color)
   (set-draw-color renderer color)
@@ -127,7 +142,7 @@
     (when dest (sdl2:free-rect dest-sdl-rect))
     (when src (sdl2:free-rect src-sdl-rect))))
 
-(defun draw-character (renderer character font position &optional (color +color-white+))
+(defun draw-character (renderer character font position &key (color +color-white+))
   (let* ((character-glyph (get-glyph font character))
          (character-rect (make-rectangle
                           :x (vec2-x position) :y (vec2-y position)
@@ -137,7 +152,7 @@
                   :dest character-rect
                   :color color)))
 
-(defun draw-string (renderer string font position &optional (color +color-white+))
+(defun draw-string (renderer string font position &key (color +color-white+))
   (let ((start-position position)
         (current-position position))
     (dotimes (index (length string))
@@ -149,7 +164,7 @@
                        (setf (vec2-x current-position)
                              (vec2-x start-position))))
           (otherwise
-           (draw-character renderer character font current-position color)
+           (draw-character renderer character font current-position :color color)
            (incf (vec2-x current-position) (char-x-advance font character))))))))
 
 (defun draw-filled-rectangle (renderer rectangle &optional (color +color-white+))
