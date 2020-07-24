@@ -1,0 +1,51 @@
+*THEME : Fortress*
+*LIMITATION : Player must control multiple entities*
+
+Hmmm, well does this mean at the same time or at some point?
+
+I can't think of many games that allow multiple entity control unless it's
+a CRPG or strategy game but that's different...
+
+Well let's see, maybe we can do a "time-split" sort of dealie and still have
+it work.
+
+Have like 3 or 4 unique heroes and split a different interval of time between them
+in order. This might make the game a huge PITA, or it could be interesting.
+
+We'll explain it away with some weird entanglement spell.
+
+Lots of powerups will definitely be needed to make the game not feel like ass.
+
+So like a bunch of adventurers show up into a castle to conquer the big baddie,
+we'll have like 4 levels or something of moderate size to be not horrible.
+
+They are :
+
+THE KNIGHT : Heavy defense, okay attack, not much else ,
+             can break doors
+(15 seconds)
+
+THE CLERIC : Moderate defense, bad attack, but can heal themself and the rest
+(15 seconds)
+
+THE WIZARD : Low defense, faster, good attack,
+also has a spell that can allow the unlocking shortcuts by controlling the
+castle's obstacles (opening a draw bridge or shortcut or some loot)
+(10 seconds)
+
+THE BARBARIAN : no defense, very fast, good attack, higher jump
+(10 seconds)
+
+There will be powerups to :
+
+DELAY THE "MIND" SWAP (+5 seconds)
+FORCE THE "MIND" SWAP (to another character of choice)
+
+and then your standard fair of hp and stuff like that.
+
+To make the game less annoying it will have to fast paced, and the stuff
+might have to be designed around having multiple entities (like puzzles that
+require a person on the other side or something)
+
+Basically the game allows you to control multiple entities but only one at a time,
+which should be fair. I can't really see anything other than a party based game for that.
