@@ -48,8 +48,16 @@
   (let ((glyph (gethash character (glyph-cache font))))
     (sdl2:texture-width glyph)))
 
+(defstruct camera (position (vec2 0 0)))
+(defun camera-transform-point (camera original)
+  (vec2 (- (vec2-x original) (vec2-x (camera-position camera)))
+        (- (vec2-y original) (vec2-y (camera-position camera)))))
+
 (defclass renderer ()
   ((renderer :accessor renderer :initarg :renderer)
+   (camera :accessor camera
+           :initarg camera
+           :initform (make-camera))
    (screen :accessor screen :initarg :screen)
    (screen-width :accessor screen-width
                  :initarg :screen-width
@@ -127,20 +135,25 @@
                                         (center nil)
                                         (flip nil)
                                         (color +color-white+))
-  (let ((src-sdl-rect (if src (rectangle->sdl-rect src) (cffi:null-pointer)))
-        (dest-sdl-rect (if dest (rectangle->sdl-rect dest) (cffi:null-pointer)))
-        (center-sdl-point (if center (vec2->sdl-point center) (cffi:null-pointer))))
-    (sdl2:set-texture-color-mod texture (color-r color) (color-g color) (color-b color))
-    (sdl2:set-texture-alpha-mod texture (color-a color))
-    (sdl2:render-copy-ex (renderer renderer) texture
-                         :source-rect src-sdl-rect
-                         :dest-rect dest-sdl-rect
-                         :angle angle
-                         :center center
-                         :flip flip)
-    (when center (sdl2:free-point center-sdl-point))
-    (when dest (sdl2:free-rect dest-sdl-rect))
-    (when src (sdl2:free-rect src-sdl-rect))))
+  (let* ((transformed-position (camera-transform-point (camera renderer) (rectangle-position dest)))
+         (dest (rectangle (vec2-x transformed-position)
+                          (vec2-y transformed-position)
+                          (rectangle-w dest)
+                          (rectangle-h dest))))
+    (let ((src-sdl-rect (if src (rectangle->sdl-rect src) (cffi:null-pointer)))
+          (dest-sdl-rect (if dest (rectangle->sdl-rect dest) (cffi:null-pointer)))
+          (center-sdl-point (if center (vec2->sdl-point center) (cffi:null-pointer))))
+      (sdl2:set-texture-color-mod texture (color-r color) (color-g color) (color-b color))
+      (sdl2:set-texture-alpha-mod texture (color-a color))
+      (sdl2:render-copy-ex (renderer renderer) texture
+                           :source-rect src-sdl-rect
+                           :dest-rect dest-sdl-rect
+                           :angle angle
+                           :center center
+                           :flip flip)
+      (when center (sdl2:free-point center-sdl-point))
+      (when dest (sdl2:free-rect dest-sdl-rect))
+      (when src (sdl2:free-rect src-sdl-rect)))))
 
 (defun draw-character (renderer character font position &key (color +color-white+))
   (let* ((character-glyph (get-glyph font character))
@@ -169,21 +182,42 @@
 
 (defun draw-filled-rectangle (renderer rectangle &optional (color +color-white+))
   (set-draw-color renderer color)
-  (let ((draw-rect (rectangle->sdl-rect rectangle)))
-    (sdl2:render-fill-rect (renderer renderer) draw-rect)
-    (sdl2:free-rect draw-rect)))
+  (let* ((transformed-position
+           (camera-transform-point (camera renderer)
+                                   (rectangle-position rectangle)))
+         (rectangle (rectangle (vec2-x transformed-position)
+                               (vec2-y transformed-position)
+                               (rectangle-w rectangle)
+                               (rectangle-h rectangle))))
+    (let ((draw-rect (rectangle->sdl-rect rectangle)))
+      (sdl2:render-fill-rect (renderer renderer) draw-rect)
+      (sdl2:free-rect draw-rect))))
 
 (defun draw-rectangle (renderer rectangle &optional (color +color-white+))
   (set-draw-color renderer color)
-  (let ((draw-rect (rectangle->sdl-rect rectangle)))
-    (sdl2:render-draw-rect (renderer renderer) draw-rect)
-    (sdl2:free-rect draw-rect)))
+  (let* ((transformed-position
+           (camera-transform-point (camera renderer)
+                                   (rectangle-position rectangle)))
+         (rectangle (rectangle (vec2-x transformed-position)
+                               (vec2-y transformed-position)
+                               (rectangle-w rectangle)
+                               (rectangle-h rectangle))))
+    (let ((draw-rect (rectangle->sdl-rect rectangle)))
+      (sdl2:render-draw-rect (renderer renderer) draw-rect)
+      (sdl2:free-rect draw-rect))))
 
 (defun draw-line (renderer start end &optional (color +color-white+))
   (set-draw-color renderer color)
-  (sdl2:render-draw-line (renderer renderer)
-                         (vec2-x start)
-                         (vec2-y start)
-                         (vec2-x end)
-                         (vec2-y end)))
+  (let ((start (camera-transform-point (camera renderer) start))
+        (end (camera-transform-point (camera renderer) end)))
+    (sdl2:render-draw-line (renderer renderer)
+                           (vec2-x start)
+                           (vec2-y start)
+                           (vec2-x end)
+                           (vec2-y end))))
 
+(defun set-camera-position (renderer position)
+  (setf (camera-position (camera renderer)) position))
+
+(defun reset-camera (renderer)
+  (set-camera-position renderer (vec2 0 0)))

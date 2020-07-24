@@ -27,7 +27,9 @@
           (+ (ranged-value-current ranged) val)))
 
 (defclass game (window)
-  ((fader :accessor fader
+  ((camera :accessor game-camera
+           :initform (make-camera))
+   (fader :accessor fader
           :initform (make-instance 'screen-fade)) 
    (state :accessor state
           :initform :gameplay)
@@ -76,8 +78,25 @@
                "GAME OVER" *game-font* (vec2 0 0)
                :color +color-green+))
 
+(defun get-camera-move-direction (game)
+  (cond
+    ((is-key-down (input game) :scancode-up)
+     (vec2 0 -1))
+    ((is-key-down (input game) :scancode-down)
+     (vec2 0 1))
+    ((is-key-down (input game) :scancode-left)
+     (vec2 -1 0))
+    ((is-key-down (input game) :scancode-right)
+     (vec2 1 0))
+    (t (vec2 0 0))))
+
 (defun gameplay-frame (game delta-time)
   (clear-color (renderer game) (color 10 10 20 255))
+  (set-camera-position (renderer game) (camera-position (game-camera game)))
+
+  (vec2-incf (camera-position (game-camera game))
+             (vec2-mul (vec2-mul (get-camera-move-direction game) delta-time)
+              (unit 5)))
 
   (if (is-key-pressed (input game) :scancode-a)
       (setf (health (player game))

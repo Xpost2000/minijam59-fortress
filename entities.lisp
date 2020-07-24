@@ -44,6 +44,8 @@
     (setf (timer fader) (fade-length fader))))
 
 (defun screen-fade-draw (fader renderer)
+  ;; no renderlayer or command buffer to defer stuff. so this...
+  (reset-camera renderer)
   (when (active fader)
     (let ((alpha (cond
                    ((eql (direction fader) :fade-in)
