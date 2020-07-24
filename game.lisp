@@ -2,6 +2,9 @@
 
 (defparameter *game-font* nil)
 (defparameter *game-window* nil) ;; context
+
+(defparameter *test-sound-chunk* nil)
+
 (defun unit (x) (* (/ (width *game-window*) 50) x))
 
 (defstruct ranged-value
@@ -40,7 +43,11 @@
   ;; this context is nasty...
   (setf *game-window* game)
   (setf *game-font* (load-font (renderer game)
-                               "resources/fonts/PxPlus_IBM_VGA8.ttf" 98)))
+                               "resources/fonts/PxPlus_IBM_VGA8.ttf" 98))
+
+  (setf *test-sound-chunk* (sdl2-mixer:load-wav "resources/sound/wave_finished.wav"))
+  (print *test-sound-chunk*)
+  )
 
 (defun draw-filled-bar-range (renderer
                               value
@@ -102,7 +109,8 @@
              (vec2-mul (vec2-mul (get-camera-move-direction game) delta-time)
               (unit 10)))
 
-  (if (is-key-pressed (input game) :scancode-a)
+  (when (is-key-pressed (input game) :scancode-a)
+      (sdl2-mixer:play-channel -1 *test-sound-chunk* 0) 
       (setf (health (player game))
             (ranged-value-subtract (health (player game)) 15)))
 
@@ -150,6 +158,7 @@
 
 (defmethod window-quit ((game game))
   (renderer-destroy (renderer game))
+  (sdl2-mixer:free-chunk *test-sound-chunk*)
   (show-simple-message-box
    :information
    "Thanks for playing!"

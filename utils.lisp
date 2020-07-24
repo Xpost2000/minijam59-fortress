@@ -34,8 +34,8 @@
   `(sdl2:with-init (:video :audio)
      (sdl2-image:init '(:png))
      (sdl2-ttf:init)
-     (sdl2-mixer:init :ogg)
-     (sdl2-mixer:open-audio 44100 :s16sys 2 4096)
+     (sdl2-mixer:init :ogg :mod :modplug)
+     (sdl2-mixer:open-audio 22050 :s16sys 2 2048)
      ,@body
      (sdl2-mixer:close-audio)
      (sdl2-mixer:quit)
