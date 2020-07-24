@@ -29,3 +29,15 @@
     (dotimes (index display-mode-count)
       (vector-push (create-display-mode display-index index) display-modes))
     display-modes))
+
+(defmacro with-initialize-sdl (&rest body)
+  `(sdl2:with-init (:video :audio)
+     (sdl2-image:init '(:png))
+     (sdl2-ttf:init)
+     (sdl2-mixer:init :ogg)
+     (sdl2-mixer:open-audio 44100 :s16sys 2 4096)
+     ,@body
+     (sdl2-mixer:close-audio)
+     (sdl2-mixer:quit)
+     (sdl2-ttf:quit)
+     (sdl2-image:quit)))

@@ -21,11 +21,15 @@
                (:file "sdl-renderer"
                 :depends-on ("rectangle"
                              "vec2"))
+               (:file "window"
+                :depends-on ("input"
+                             "sdl-renderer"))
                (:file "launcher"
-                :depends-on ("sdl-renderer"
-                             "utils"
-                             "input"))
+                :depends-on ("window"
+                             "utils"))
                (:file "game"
+                :depends-on ("window"))
+               (:file "main"
                 :depends-on ("launcher"
-                             "input"))
+                             "game"))
                (:file "build")))
