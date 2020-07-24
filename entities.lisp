@@ -67,4 +67,5 @@
     (decf (timer fader) delta-time)
     (when (<= (timer fader) 0.0)
       (setf (active fader) nil)
-      (funcall (on-finish fader)))))
+      (when (functionp (on-finish fader)) 
+        (funcall (on-finish fader))))))

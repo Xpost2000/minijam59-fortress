@@ -27,8 +27,10 @@
                (:file "launcher"
                 :depends-on ("window"
                              "utils"))
+               (:file "entities")
                (:file "game"
-                :depends-on ("window"))
+                :depends-on ("window"
+                             "entities"))
                (:file "main"
                 :depends-on ("launcher"
                              "game"))

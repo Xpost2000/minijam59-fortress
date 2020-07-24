@@ -79,29 +79,41 @@
                :color +color-green+))
 
 (defun get-camera-move-direction (game)
-  (cond
-    ((is-key-down (input game) :scancode-up)
-     (vec2 0 -1))
-    ((is-key-down (input game) :scancode-down)
-     (vec2 0 1))
-    ((is-key-down (input game) :scancode-left)
-     (vec2 -1 0))
-    ((is-key-down (input game) :scancode-right)
-     (vec2 1 0))
-    (t (vec2 0 0))))
+  (vec2-add
+   (cond
+     ((is-key-down (input game) :scancode-up)
+      (vec2 0 -1))
+     ((is-key-down (input game) :scancode-down)
+      (vec2 0 1))
+     (t (vec2 0 0)))
+   (cond
+     ((is-key-down (input game) :scancode-left)
+      (vec2 -1 0))
+     ((is-key-down (input game) :scancode-right)
+      (vec2 1 0))
+     (t (vec2 0 0)))))
 
 (defun gameplay-frame (game delta-time)
   (clear-color (renderer game) (color 10 10 20 255))
+  ;; Game play elements
   (set-camera-position (renderer game) (camera-position (game-camera game)))
 
   (vec2-incf (camera-position (game-camera game))
              (vec2-mul (vec2-mul (get-camera-move-direction game) delta-time)
-              (unit 5)))
+              (unit 10)))
 
   (if (is-key-pressed (input game) :scancode-a)
       (setf (health (player game))
             (ranged-value-subtract (health (player game)) 15)))
 
+  (draw-filled-rectangle (renderer game)
+                         (rectangle (unit 2)
+                                    (unit 2)
+                                    (unit 8)
+                                    (unit 8)))
+
+  ;; UI
+  (reset-camera (renderer game))
   (draw-filled-bar-range (renderer game) (health (player game))
                          :position (vec2 10 10)
                          :size (vec2 800 60)
@@ -114,16 +126,17 @@
                          :fill-color +color-blue+
                          :background-color +color-red+)
 
-  (draw-filled-rectangle (renderer game)
-                         (rectangle (unit 2)
-                                    (unit 2)
-                                    (unit 8)
-                                    (unit 8)))
-
   (when (< (ranged-value-current (health (player game))) 0)
-    (start-fade (fader game) :length 3.0
+    (start-fade (fader game)
+                :length 1.25
+                :color (color 255 0 0 255)
                 :direction :fade-out
-                :on-finish #'(lambda () (setf (state game) :gameover)))))
+                :on-finish #'(lambda ()
+                               (setf (state game) :gameover)
+                               (start-fade (fader game)
+                                           :length 1.25
+                                           :color (color 255 0 0 255)
+                                           :direction :fade-in)))))
 
 (defmethod window-frame ((game game) delta-time)
   (set-blend-mode (renderer game) :blend)
