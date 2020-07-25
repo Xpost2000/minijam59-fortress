@@ -35,10 +35,10 @@
   (setf (width window) width)
   (setf (height window) height)
   (if (fullscreen window)
+      (error "fullscreen change not handled?")
       (sdl2:set-window-size (window window)
                             (width window)
-                            (height window))
-      (error "fullscreen change not handled?")))
+                            (height window))))
 
 (defgeneric window-frame (window delta-time))
 (defgeneric window-setup (window))

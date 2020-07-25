@@ -1,5 +1,17 @@
 (in-package :mjgame)
 
+(defparameter *game-window* nil) ;; context
+;; I scale off of horizontal resolution
+;; but on the most common aspect ratios the game seems to
+;; look okay so I'll let this go.
+;; just don't play with like 300 x 600 and we'll be fine.
+(defun unit (x) (* (/ (width *game-window*) 60) x))
+
+(defun clamp (val min max)
+  (let ((clamp-result (min (max val min) max)))
+    (values clamp-result
+            (not (= val clamp-result)))))
+
 (defstruct display-mode
   format
   width

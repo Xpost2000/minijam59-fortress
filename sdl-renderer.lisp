@@ -155,17 +155,21 @@
       (when dest (sdl2:free-rect dest-sdl-rect))
       (when src (sdl2:free-rect src-sdl-rect)))))
 
-(defun draw-character (renderer character font position &key (color +color-white+))
-  (let* ((character-glyph (get-glyph font character))
-         (character-rect (make-rectangle
-                          :x (vec2-x position) :y (vec2-y position)
-                          :w (sdl2:texture-width character-glyph)
-                          :h (sdl2:texture-height character-glyph))))
-    (draw-texture renderer character-glyph
-                  :dest character-rect
-                  :color color)))
+(defun draw-character (renderer character font position &key (color +color-white+) (size :default))
+  (let* ((character-glyph (get-glyph font character)))
+    (let* ((scale-factor (if (keywordp size)
+                             (when (eq size :default) 1)
+                             (/ size (font-height font))))
+           (character-rect (make-rectangle
+                            :x (vec2-x position)  :y (vec2-y position)
+                            :w (* (sdl2:texture-width character-glyph) scale-factor)
+                            :h (* (sdl2:texture-height character-glyph) scale-factor))))
+      (draw-texture renderer character-glyph
+                    :dest character-rect
+                    :color color)
+      scale-factor)))
 
-(defun draw-string (renderer string font position &key (color +color-white+))
+(defun draw-string (renderer string font position &key (color +color-white+) (size :default))
   (let ((start-position position)
         (current-position position))
     (dotimes (index (length string))
@@ -177,8 +181,8 @@
                        (setf (vec2-x current-position)
                              (vec2-x start-position))))
           (otherwise
-           (draw-character renderer character font current-position :color color)
-           (incf (vec2-x current-position) (char-x-advance font character))))))))
+           (let ((scale-factor (draw-character renderer character font current-position :color color :size size)))
+             (incf (vec2-x current-position) (* scale-factor (char-x-advance font character))))))))))
 
 (defun draw-filled-rectangle (renderer rectangle &optional (color +color-white+))
   (set-draw-color renderer color)

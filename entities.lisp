@@ -4,7 +4,10 @@
 
 ;; overseer?
 (defclass player ()
-  ((health :accessor health
+  ((location :accessor location
+             :initarg :location
+             :initform (vec2 0 0)) ;; index into array of rooms.
+   (health :accessor health
            :initform (ranged 0 100 :max))
    (energy :accessor energy
            :initform (ranged 0 100 :max))))
@@ -32,6 +35,7 @@
 (defun start-fade (fader
                    &key
                      length
+                     (linger-length 0.0)
                      (direction :fade-out)
                      (color +color-black+)
                      on-finish)
@@ -41,7 +45,19 @@
     (setf (fade-length fader) length)
     (setf (on-finish fader) on-finish)
     (setf (fade-color fader) color)
-    (setf (timer fader) (fade-length fader))))
+    (setf (timer fader) (+ (fade-length fader) linger-length))))
+
+;; if I have time I guess.
+#+- (defmacro fade-out-and-in-transition (&key
+                                        color
+                                        fade-in-length
+                                        fade-in-linger-length
+                                        ;;on-fade-in-finish
+
+                                        (fade-out-length fade-in-length)
+                                        (fade-out-linger-length fade-in-linger-length)
+                                        on-fade-out-finish)
+  )
 
 (defun screen-fade-draw (fader renderer)
   ;; no renderlayer or command buffer to defer stuff. so this...
@@ -49,10 +65,14 @@
   (when (active fader)
     (let ((alpha (cond
                    ((eql (direction fader) :fade-in)
-                    (round (* 255 (/ (timer fader) (fade-length fader)))))
+                    (round (* 255
+                              (clamp (/ (timer fader) (fade-length fader))
+                                     0 1))))
                    ((eql (direction fader) :fade-out)
-                    (round (* 255 (/ (- (fade-length fader) (timer fader))
-                                     (fade-length fader))))))))
+                    (round (* 255
+                              (clamp (/ (- (fade-length fader) (timer fader))
+                                        (fade-length fader))
+                                     0 1)))))))
       (draw-filled-rectangle renderer
                              (rectangle 0 0
                                         (screen-width renderer)
@@ -69,3 +89,38 @@
       (setf (active fader) nil)
       (when (functionp (on-finish fader)) 
         (funcall (on-finish fader))))))
+
+;; all are in units
+(defparameter *room-width* 50)
+(defparameter *room-max-height* 30)
+(defparameter *room-floor-height* 4) ;; from floor
+
+(defclass game-room () ())
+
+(defgeneric draw-room (room renderer x y))
+
+(defmethod draw-room ((room game-room) renderer x y)
+  (let ((room-x (* *room-width* x))
+        (room-y (* *room-max-height* y)))
+    (draw-filled-rectangle renderer 
+                           (rectangle (unit room-x) (unit room-y)
+                                      (unit (- *room-width* 1))
+                                      (unit (- *room-max-height* 1)))
+                           +color-red+)
+    (draw-filled-rectangle renderer 
+                           (rectangle (unit room-x)
+                                      (unit (+ room-y (- *room-max-height* *room-floor-height*)))
+                                      (unit (- *room-width* 1))
+                                      (unit (- *room-floor-height* 1)))
+                           +color-blue+)
+
+    ;; door boundary
+
+    (draw-filled-rectangle renderer 
+                           (rectangle (unit room-x)
+                                      (unit (+ room-y (- *room-max-height* *room-floor-height*)))
+                                      (unit (- *room-width* 1))
+                                      (unit (- *room-floor-height* 1)))
+                           +color-blue+)
+
+    ))

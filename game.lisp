@@ -1,11 +1,9 @@
 (in-package :mjgame)
 
+(defparameter *game-window* nil) ;; expose to repl to test resolution stuff
 (defparameter *game-font* nil)
-(defparameter *game-window* nil) ;; context
 
 (defparameter *test-sound-chunk* nil)
-
-(defun unit (x) (* (/ (width *game-window*) 50) x))
 
 (defstruct ranged-value
   (current 0)
@@ -36,6 +34,7 @@
           :initform (make-instance 'screen-fade)) 
    (state :accessor state
           :initform :gameplay)
+   (rooms :accessor rooms)
    (player :accessor player
            :initform (make-instance 'player))))
 
@@ -47,7 +46,16 @@
 
   (setf *test-sound-chunk* (sdl2-mixer:load-wav "resources/sound/wave_finished.wav"))
   (print *test-sound-chunk*)
-  )
+
+  ;; build rooms
+  (setf (rooms game)
+        (make-array '(3 3)
+                    :initial-contents
+                    (list
+                     (list (make-instance 'game-room) (make-instance 'game-room) (make-instance 'game-room))
+                     (list (make-instance 'game-room) (make-instance 'game-room) (make-instance 'game-room))
+                     (list (make-instance 'game-room) (make-instance 'game-room) (make-instance 'game-room)))
+         )))
 
 (defun draw-filled-bar-range (renderer
                               value
@@ -85,54 +93,96 @@
                "GAME OVER" *game-font* (vec2 0 0)
                :color +color-green+))
 
-(defun get-camera-move-direction (game)
-  (vec2-add
-   (cond
-     ((is-key-down (input game) :scancode-up)
-      (vec2 0 -1))
-     ((is-key-down (input game) :scancode-down)
-      (vec2 0 1))
-     (t (vec2 0 0)))
-   (cond
-     ((is-key-down (input game) :scancode-left)
-      (vec2 -1 0))
-     ((is-key-down (input game) :scancode-right)
-      (vec2 1 0))
-     (t (vec2 0 0)))))
+(defparameter *can-move* t)
+
+(defun get-player-move-direction (game)
+  (when *can-move*
+    (cond
+      ((is-key-pressed (input game) :scancode-up)
+       (vec2 0 -1))
+      ((is-key-pressed (input game) :scancode-down)
+       (vec2 0 1))
+      ((is-key-pressed (input game) :scancode-right)
+       (vec2 1 0))
+      ((is-key-pressed (input game) :scancode-left)
+       (vec2 -1 0))
+      (t nil))))
+
+(defun clamp-player-location (player)
+  (multiple-value-bind (clamp-x changed-x-p) (clamp (vec2-x (location player)) 0 2)
+    (multiple-value-bind (clamp-y changed-y-p) (clamp (vec2-y (location player)) 0 2)
+      (values (vec2 clamp-x clamp-y)
+              (not (or changed-x-p changed-y-p))))))
+
+(defun update-renderer-camera (game)
+  (set-camera-position (renderer game) (camera-position (game-camera game))))
+
+(defun move-camera-to-player-location (game)
+  (setf (camera-position (game-camera game))
+        (vec2
+         (unit (- (* (vec2-x (location (player game))) *room-width*) 1.5))
+         (unit (- (* (vec2-y (location (player game))) *room-max-height*) 1)))))
 
 (defun gameplay-frame (game delta-time)
   (clear-color (renderer game) (color 10 10 20 255))
   ;; Game play elements
-  (set-camera-position (renderer game) (camera-position (game-camera game)))
+  
+  (update-renderer-camera game)
+  (move-camera-to-player-location game)
 
-  (vec2-incf (camera-position (game-camera game))
-             (vec2-mul (vec2-mul (get-camera-move-direction game) delta-time)
-              (unit 10)))
-
+  (let ((move-dir (get-player-move-direction game)))
+    (when move-dir
+      (vec2-incf (location (player game)) move-dir)
+      (multiple-value-bind (new-location moved-p) (clamp-player-location (player game))
+        (setf (location (player game)) new-location)
+        (when moved-p
+          (setf *can-move* nil)
+          (start-fade (fader game)
+                      :length 0.15
+                      ;; :linger-length 0.4 Should rename to delay?
+                      :color +color-black+ 
+                      :direction :fade-out
+                      :on-finish #'(lambda ()
+                                     (start-fade (fader game)
+                                                 :length 0.25
+                                                 :linger-length 0.2
+                                                 :color +color-black+
+                                                 :direction :fade-in
+                                                 :on-finish #'(lambda ()
+                                                                (setf *can-move* t)))))
+          ))))
+  
   (when (is-key-pressed (input game) :scancode-a)
       (sdl2-mixer:play-channel -1 *test-sound-chunk* 0) 
       (setf (health (player game))
             (ranged-value-subtract (health (player game)) 15)))
 
-  (draw-filled-rectangle (renderer game)
-                         (rectangle (unit 2)
-                                    (unit 2)
-                                    (unit 8)
-                                    (unit 8)))
-
+  (dotimes (y 3)
+    (dotimes (x 3)
+      (draw-room (aref (rooms game) y x) (renderer game) x y)))
   ;; UI
   (reset-camera (renderer game))
   (draw-filled-bar-range (renderer game) (health (player game))
                          :position (vec2 10 10)
-                         :size (vec2 800 60)
+                         :size (vec2 600 30)
                          :fill-color +color-green+
                          :background-color +color-red+)
 
   (draw-filled-bar-range (renderer game) (energy (player game))
-                         :position (vec2 10 80)
-                         :size (vec2 800 60)
+                         :position (vec2 10 50)
+                         :size (vec2 600 30)
                          :fill-color +color-blue+
                          :background-color +color-red+)
+
+  (draw-string (renderer game)
+               (format nil "room (~a, ~a)"
+                       (vec2-x (location (player game)))
+                       (vec2-y (location (player game))))
+               *game-font*
+               (vec2 630 0)
+               :size 30)
+  (draw-string (renderer game)
+               )
 
   (when (< (ranged-value-current (health (player game))) 0)
     (start-fade (fader game)
