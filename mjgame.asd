@@ -31,6 +31,9 @@
                (:file "game"
                 :depends-on ("window"
                              "entities"))
+               (:file "rooms"
+                :depends-on ("game"
+                             "entities"))
                (:file "main"
                 :depends-on ("launcher"
                              "game"))
