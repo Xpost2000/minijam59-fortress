@@ -18,14 +18,24 @@
                                     ((:min :minimum) min)
                                     ((:max :maximum) max))
                                   current)))
+(defmacro ranged-value-incf (ranged val)
+  `(setf ,ranged (ranged-value-add ,ranged ,val)))
+(defmacro ranged-value-decf (ranged val)
+  `(setf ,ranged (ranged-value-subtract ,ranged ,val)))
+
 (defun ranged-value-subtract (ranged val)
   (ranged (ranged-value-min ranged)
           (ranged-value-max ranged)
-          (- (ranged-value-current ranged) val)))
+          (clamp (- (ranged-value-current ranged) val)
+                 (ranged-value-min ranged)
+                 (ranged-value-max ranged))))
+
 (defun ranged-value-add (ranged val)
   (ranged (ranged-value-min ranged)
           (ranged-value-max ranged)
-          (+ (ranged-value-current ranged) val)))
+          (clamp (+ (ranged-value-current ranged) val)
+                 (ranged-value-min ranged)
+                 (ranged-value-max ranged))))
 
 (defclass game (window)
   ((camera :accessor game-camera
@@ -123,6 +133,16 @@
          (unit (- (* (vec2-x (location (player game))) *room-width*) 1.5))
          (unit (- (* (vec2-y (location (player game))) *room-max-height*) 1)))))
 
+;; position is a vector
+(defmacro with-room ((position room) &rest body)
+  (let ((x-pos (gensym))
+        (y-pos (gensym)))
+    `(let* ((x-pos (vec2-x ,position))
+            (y-pos (vec2-y ,position))
+            (,room (aref (rooms game) y-pos x-pos)))
+       ,@body
+       )))
+
 (defun gameplay-frame (game delta-time)
   (clear-color (renderer game) (color 10 10 20 255))
   ;; Game play elements
@@ -130,6 +150,7 @@
   (update-renderer-camera game)
   (move-camera-to-player-location game)
 
+  ;; player "movement"
   (let ((move-dir (get-player-move-direction game)))
     (when move-dir
       (vec2-incf (location (player game)) move-dir)
@@ -151,28 +172,54 @@
                                                  :on-finish #'(lambda ()
                                                                 (setf *can-move* t)))))
           ))))
-  
-  (when (is-key-pressed (input game) :scancode-a)
+
+
+  ;; player input
+
+  ;; DEBUG!
+  (when (is-key-pressed (input game) :scancode-r)
+    (setf (ranged-value-current (energy (player game))) 100))
+
+  (with-room ((location (player game)) room)
+    (when (is-key-pressed (input game) :scancode-a)
       (sdl2-mixer:play-channel -1 *test-sound-chunk* 0) 
-      (setf (health (player game))
-            (ranged-value-subtract (health (player game)) 15)))
+      (ranged-value-decf (health (player game)) 15))
+    (when (is-key-pressed (input game) :scancode-space)
+      (toggle-door room)))
 
   (dotimes (y 3)
     (dotimes (x 3)
-      (draw-room (aref (rooms game) y x) (renderer game) x y)))
+      (with-room ((vec2 x y) room)
+                 (update-room room game delta-time) 
+                 (draw-room room (renderer game) x y))))
   ;; UI
-  (reset-camera (renderer game))
+  (reset-camera (renderer game)) 
   (draw-filled-bar-range (renderer game) (health (player game))
                          :position (vec2 10 10)
                          :size (vec2 600 30)
                          :fill-color +color-green+
                          :background-color +color-red+)
+  (draw-string (renderer game)
+               (format nil "(~a, ~a)"
+                       (ranged-value-current (health (player game)))
+                       (ranged-value-max (health (player game))))
+               *game-font*
+               (vec2 20 15)
+               :size 24
+               :color +color-black+)
 
   (draw-filled-bar-range (renderer game) (energy (player game))
                          :position (vec2 10 50)
                          :size (vec2 600 30)
                          :fill-color +color-blue+
                          :background-color +color-red+)
+  (draw-string (renderer game)
+               (format nil "(~a, ~a)"
+                       (ranged-value-current (energy (player game)))
+                       (ranged-value-max (energy (player game))))
+               *game-font*
+               (vec2 20 55)
+               :size 24)
 
   (draw-string (renderer game)
                (format nil "room (~a, ~a)"

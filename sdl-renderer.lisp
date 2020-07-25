@@ -7,7 +7,7 @@
 (defparameter +color-red+ (make-color :r 255 :g 0 :b 0 :a 255))
 (defparameter +color-blue+ (make-color :r 0 :g 0 :b 255 :a 255))
 (defparameter +color-green+ (make-color :r 0 :g 255 :b 0 :a 255))
-(defparameter +color-black+ (make-color :r 0 :g 0 :b 0 :a 0))
+(defparameter +color-black+ (make-color :r 0 :g 0 :b 0 :a 255))
 
 (defclass font-resource ()
   ((font :reader font
