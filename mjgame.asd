@@ -34,6 +34,11 @@
                (:file "rooms"
                 :depends-on ("game"
                              "entities"))
+               (:file "screenfade"
+                :depends-on ("entities"))
+               (:file "enemies"
+                :depends-on ("game"
+                             "entities"))
                (:file "main"
                 :depends-on ("launcher"
                              "game"))

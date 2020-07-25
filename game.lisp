@@ -37,6 +37,8 @@
                  (ranged-value-min ranged)
                  (ranged-value-max ranged))))
 
+(defconstant +max-enemies-in-game+ 2048)
+
 (defclass game (window)
   ((camera :accessor game-camera
            :initform (make-camera))
@@ -44,6 +46,11 @@
           :initform (make-instance 'screen-fade)) 
    (state :accessor state
           :initform :gameplay)
+   (enemies :accessor enemies
+            :initform (make-array
+                       +max-enemies-in-game+
+                       :element-type 'enemy
+                       :fill-pointer 0))
    (rooms :accessor rooms)
    (player :accessor player
            :initform (make-instance 'player))))
@@ -65,7 +72,9 @@
                      (list (make-instance 'game-room) (make-instance 'game-room) (make-instance 'game-room))
                      (list (make-instance 'game-room) (make-instance 'game-room) (make-instance 'game-room))
                      (list (make-instance 'game-room) (make-instance 'game-room) (make-instance 'game-room)))
-         )))
+                    ))
+  (vector-push (make-instance 'enemy) (enemies game))
+  )
 
 (defun draw-filled-bar-range (renderer
                               value
@@ -192,6 +201,11 @@
       (with-room ((vec2 x y) room)
                  (update-room room game delta-time) 
                  (draw-room room (renderer game) x y))))
+
+  (dotimes (enemy-index (length (enemies game)))
+    (update-enemy (aref (enemies game) enemy-index) game delta-time)
+    (draw-enemy (aref (enemies game) enemy-index) (renderer game)))
+
   ;; UI
   (reset-camera (renderer game)) 
   (draw-filled-bar-range (renderer game) (health (player game))
@@ -234,7 +248,14 @@
                (vec2 700 45)
                :size 40)
 
-  (when (< (ranged-value-current (health (player game))) 0)
+  ;; hard coded debug :P
+  (draw-string (renderer game)
+               (write-to-string (location (aref (enemies game) 0)))
+               *game-font*
+               (vec2 0 500)
+               :size 16)
+
+  (when (player-dead-p (player game))
     (start-fade (fader game)
                 :length 1.25
                 :color (color 255 0 0 255)

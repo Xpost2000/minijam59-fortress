@@ -1,7 +1,5 @@
 (in-package :mjgame)
 
-;; avoiding circular dependency.
-
 ;; (not (barrier-door-open)) would have been better.
 (defmethod close-door ((room game-room))
   (when (barrier-door-open room)
@@ -41,14 +39,32 @@
       (ranged-value-decf (energy (player game)) 5)
       (setf (power-usage-timer room) 0.0))))
 
+(defun room-get-side-bounding-box (room x y direction)
+  ;; x y are technically zero indexed. Un zero them for stuff to work better.
+  ;; I technically shouldn't do this here though.... Ugh.
+  (let ((x (1+ x))
+        (y (1+ y)))
+    (case direction
+      (:left (rectangle x y 1 *room-max-height*))
+      (:right (rectangle (1- (* x *room-width*)) y 1 *room-max-height*))
+      (:top (rectangle x y *room-width* 1))
+      (:bottom (rectangle x (1- (* *room-max-height* y)) *room-width* 1)))))
+
+(defun room-get-bounding-box (room x y)
+  (rectangle  (* *room-width* x)
+              (* *room-max-height* y)
+              *room-width*
+              *room-max-height*))
+
 (defmethod draw-room ((room game-room) renderer x y)
   (let ((room-x (* *room-width* x))
         (room-y (* *room-max-height* y)))
     (draw-filled-rectangle renderer 
                            (rectangle (unit room-x) (unit room-y)
-                                      (unit (- *room-width* 1))
-                                      (unit (- *room-max-height* 1)))
+                                      (unit *room-width*)
+                                      (unit *room-max-height*))
                            +color-red+)
+    ;; floor
     (draw-filled-rectangle renderer 
                            (rectangle (unit room-x)
                                       (unit (+ room-y (- *room-max-height* *room-floor-height*)))
@@ -63,5 +79,4 @@
                                         (unit room-y)
                                         (unit *door-width*)
                                         (unit (- *room-max-height* 1)))
-                             +color-green+)
-      )))
+                             +color-green+))))

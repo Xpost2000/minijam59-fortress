@@ -11,6 +11,8 @@
            :initform (ranged 0 100 :max))
    (energy :accessor energy
            :initform (ranged 0 100 :max))))
+(defun player-dead-p (player)
+  (<= (ranged-value-current (health player)) 0))
 
 ;; Incase I actually make this a real "entity" thing
 (defclass screen-fade ()
@@ -31,64 +33,6 @@
    ;; callback
    (on-finish :accessor on-finish
               :initarg on-finish)))
-
-(defun start-fade (fader
-                   &key
-                     length
-                     (linger-length 0.0)
-                     (direction :fade-out)
-                     (color +color-black+)
-                     on-finish)
-  (unless (active fader)
-    (setf (active fader) t)
-    (setf (direction fader) direction)
-    (setf (fade-length fader) length)
-    (setf (on-finish fader) on-finish)
-    (setf (fade-color fader) color)
-    (setf (timer fader) (+ (fade-length fader) linger-length))))
-
-;; if I have time I guess.
-#+- (defmacro fade-out-and-in-transition (&key
-                                        color
-                                        fade-in-length
-                                        fade-in-linger-length
-                                        ;;on-fade-in-finish
-
-                                        (fade-out-length fade-in-length)
-                                        (fade-out-linger-length fade-in-linger-length)
-                                        on-fade-out-finish)
-  )
-
-(defun screen-fade-draw (fader renderer)
-  ;; no renderlayer or command buffer to defer stuff. so this...
-  (reset-camera renderer)
-  (when (active fader)
-    (let ((alpha (cond
-                   ((eql (direction fader) :fade-in)
-                    (round (* 255
-                              (clamp (/ (timer fader) (fade-length fader))
-                                     0 1))))
-                   ((eql (direction fader) :fade-out)
-                    (round (* 255
-                              (clamp (/ (- (fade-length fader) (timer fader))
-                                        (fade-length fader))
-                                     0 1)))))))
-      (draw-filled-rectangle renderer
-                             (rectangle 0 0
-                                        (screen-width renderer)
-                                        (screen-height renderer))
-                             (color (color-r (fade-color fader))
-                                    (color-g (fade-color fader))
-                                    (color-b (fade-color fader))
-                                    alpha)))))
-
-(defun screen-fade-update (fader delta-time)
-  (when (active fader)
-    (decf (timer fader) delta-time)
-    (when (<= (timer fader) 0.0)
-      (setf (active fader) nil)
-      (when (functionp (on-finish fader)) 
-        (funcall (on-finish fader))))))
 
 ;; all are in units
 (defparameter *room-width* 50)
@@ -114,3 +58,52 @@
 (defgeneric open-door (room))
 (defgeneric toggle-door (room))
 (defgeneric disable-all-devices (room))
+
+(defstruct location
+  ;; room location not sure if technically using?
+  (room-x 0)
+  (room-y 0)
+  ;; units
+  (x 0)
+  (y 0))
+
+(defun location-update-position (location x y)
+  (setf (location-x location) x)
+  (setf (location-y location) y))
+(defun location-update-room-position (location x y)
+  (setf (location-room-x location) x)
+  (setf (location-room-y location) y))
+
+(defun location->vec2 (location)
+  (vec2 (location-x location)
+        (location-y location)))
+(defun location-room-position->vec2 (location)
+  (vec2 (location-room-x location)
+        (location-room-y location)))
+
+;; Enemies basically just walk in a straight lane to the
+;; end so y is near irrelevant.
+(defparameter *enemy-default-attack-damage* 5)
+(defparameter *enemy-default-attack-cooldown* 1.5)
+(defclass enemy ()
+  ((location :accessor location
+             :initarg :location
+             :initform (make-location))
+   (health :accessor health
+           :initarg :health
+           :initform (ranged 0 100 :max))
+   (defense :accessor defense
+            :initarg :defense
+            :initform (ranged 0 50 :max))
+   (attack-cooldown :accessor attack-cooldown
+                    :initform 0.0)
+   (size :accessor size
+         :initarg :size
+         :initform (vec2 3.5 4.55))))
+
+(defun enemy-dead-p (enemy)
+  (<= (ranged-value-current (health enemy)) 0))
+
+(defgeneric enemy-attack (enemy player))
+(defgeneric update-enemy (enemy game delta-time))
+(defgeneric draw-enemy (enemy renderer))
