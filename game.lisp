@@ -182,7 +182,10 @@
                (vec2 630 0)
                :size 30)
   (draw-string (renderer game)
-               )
+               "*INSERT SCORE* THEN *POINTS TO BUY STUFF*"
+               *game-font*
+               (vec2 700 45)
+               :size 40)
 
   (when (< (ranged-value-current (health (player game))) 0)
     (start-fade (fader game)
