@@ -102,10 +102,13 @@
                     ))
   ;; room y is the only argument that actually affects our enemy.
   ;; I can make it so room-x also does something
-  (vector-push (make-instance 'enemy :location (make-room-location :y 0)) (enemies game))
-  (vector-push (make-instance 'enemy :location (make-room-location :y 1)) (enemies game))
-  (vector-push (make-instance 'enemy :location (make-room-location :y 2)) (enemies game))
-  (add-turret-to-room (aref (rooms game) 0 2) (make-instance 'turret :position (vec2 40 5))))
+  ;; (vector-push (make-instance 'enemy :location (make-room-location :y 0)) (enemies game))
+  ;; (vector-push (make-instance 'enemy :location (make-room-location :y 1)) (enemies game))
+  ;; (vector-push (make-instance 'enemy :location (make-room-location :y 2)) (enemies game))
+  (add-turret-to-room (aref (rooms game) 0 1)
+                    (make-instance 'turret :position (vec2 55 5)))
+  (add-turret-to-room (aref (rooms game) 0 0)
+                      (make-instance 'turret :position (vec2 10 5))))
 
 (defun draw-filled-bar-range (renderer
                               value
@@ -229,6 +232,9 @@
             (,room (aref (rooms game) y-pos x-pos)))
        ,@body)))
 
+(defun game-mouse-position (game)
+  (vec2 (+ (mouse-x (input game)) (vec2-x (camera-position (game-camera game))))
+        (+ (mouse-y (input game)) (vec2-y (camera-position (game-camera game))))))
 (defun gameplay-frame (game delta-time)
   (clear-color (renderer game) (color 10 10 20 255))
   ;; Game play elements
@@ -277,7 +283,27 @@
     (when (is-key-pressed (input game) :scancode-space)
       (toggle-door room))
     ;; check mouse stuff I guess.
-    )
+
+    (let ((turret-under-mouse (position-if
+                               #'(lambda (item)
+                                   (rectangle-intersection
+                                    (let ((mouse-x (vec2-x (game-mouse-position game)))
+                                          (mouse-y (vec2-y (game-mouse-position game))))
+                                      (rectangle (pixel->unit mouse-x)
+                                                 (pixel->unit mouse-y) 0 0))
+                                    (get-bounding-box-turret item)))
+                               (turrets room))))
+      (cond ((and turret-under-mouse (is-mouse-left-down (input game)))
+
+             (dotimes (y 3)
+               (dotimes (x 3)
+                 (with-room ((vec2 x y) room)
+                            (reset-turret-active-status room))))
+             (setf (active (aref (turrets room) turret-under-mouse)) t))
+            ((is-mouse-left-down (input game))
+             (let ((active-turret (position-if #'turret-active-p (turrets room))))
+               (when active-turret
+                 (fire-turret (aref (turrets room) active-turret) game (game-mouse-position game))))))))
 
   (dotimes (y 3)
     (dotimes (x 3)
@@ -338,12 +364,25 @@
                (vec2 700 45)
                :size 40)
 
-  ;; hard coded debug :P
-  (draw-string (renderer game)
-               (write-to-string (location (aref (enemies game) 0)))
-               *game-font*
-               (vec2 0 500)
-               :size 16)
+  (let ((mouse-x (mouse-x (input game)))
+        (mouse-y (mouse-y (input game))))
+    (with-room ((location (player game)) room)
+               (draw-string (renderer game)
+                            (write-to-string (aref (turrets room) 0))
+                            *game-font*
+                            (vec2 0 518)
+                            :size 16)
+               (draw-string (renderer game)
+                            (write-to-string (length (turrets room)))
+                            *game-font*
+                            (vec2 0 534)
+                            :size 16))
+      (draw-string (renderer game)
+                   (write-to-string (vec2 (pixel->unit mouse-x)
+                                          (pixel->unit mouse-y)))
+                   *game-font*
+                   (vec2 0 500)
+                   :size 16))
 
   (when (player-dead-p (player game))
     (start-fade (fader game)

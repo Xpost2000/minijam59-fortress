@@ -40,6 +40,8 @@
              :initarg :position)
    (dead :accessor dead
          :initform nil)
+   (direction :accessor direction
+              :initform (vec2 1 0))
    (projectile-speed :accessor projectile-speed
                      :initform 8)
    (lifetime :accessor lifetime
@@ -66,12 +68,15 @@
    ;; whether it is the selected turret.
    (active :accessor active
            :initform nil)))
+(defun turret-active-p (turret)
+  (and (not (turret-dead-p turret))
+       (active turret)))
 (defun turret-dead-p (turret)
-  (<= 0 (ranged-value-current (health turret))))
+  (<= (ranged-value-current (health turret)) 0))
 (defgeneric draw-turret (turret renderer))
 (defgeneric update-turret (turret game delta-time))
 (defgeneric reload-turret (turret))
-(defgeneric fire-turret (turret game))
+(defgeneric fire-turret (turret game position))
 
 ;; all are in units
 (defparameter *room-width* 50)
@@ -97,6 +102,9 @@
 
 (defun add-turret-to-room (room turret)
   (vector-push turret (turrets room)))
+(defun reset-turret-active-status (room)
+  (dotimes (turret-index (length (turrets room)))
+    (setf (active (aref (turrets room) turret-index)) nil)))
 
 (defgeneric draw-room (room renderer x y))
 (defgeneric room-using-power? (room))

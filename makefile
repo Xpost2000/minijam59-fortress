@@ -10,6 +10,11 @@ FILES=build.lisp\
 	  show-messagebox.lisp\
 	  utils.lisp\
 	  vec2.lisp\
+	  entities.lisp\
+	  screenfade.lisp\
+	  turret.lisp\
+	  enemies.lisp\
+	  rooms.lisp\
 	  window.lisp
 
 dist/mj59game.exe: $(FILES)

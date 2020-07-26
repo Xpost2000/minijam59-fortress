@@ -22,6 +22,14 @@
 (defmacro vec2-incf (a b)
   `(setf ,a (vec2-add ,a ,b)))
 
+(defun vec2-magnitude (a)
+  (let ((y (vec2-y a))
+        (x (vec2-x a)))
+    (sqrt (+ (* y y) (* x x)))))
+
+(defun vec2-normalize (a)
+  (vec2-mul a (vec2-magnitude a)))
+
 (defun vec2->sdl-point (vec)
   (sdl2:make-point
    (truncate (vec2-x vec))
