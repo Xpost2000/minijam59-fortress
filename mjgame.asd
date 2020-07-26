@@ -31,6 +31,9 @@
                (:file "game"
                 :depends-on ("window"
                              "entities"))
+               (:file "projectile"
+                :depends-on ("game"
+                             "entities"))
                (:file "turret"
                 :depends-on ("game"
                              "entities"))

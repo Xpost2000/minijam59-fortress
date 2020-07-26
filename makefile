@@ -15,6 +15,7 @@ FILES=build.lisp\
 	  turret.lisp\
 	  enemies.lisp\
 	  rooms.lisp\
+	  projectiles.lisp\
 	  window.lisp
 
 dist/mj59game.exe: $(FILES)

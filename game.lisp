@@ -105,8 +105,7 @@
   ;; (vector-push (make-instance 'enemy :location (make-room-location :y 0)) (enemies game))
   ;; (vector-push (make-instance 'enemy :location (make-room-location :y 1)) (enemies game))
   ;; (vector-push (make-instance 'enemy :location (make-room-location :y 2)) (enemies game))
-  (add-turret-to-room (aref (rooms game) 0 1)
-                    (make-instance 'turret :position (vec2 55 5)))
+  (add-turret-to-room (aref (rooms game) 0 1) (make-instance 'turret :position (vec2 55 5)))
   (add-turret-to-room (aref (rooms game) 0 0)
                       (make-instance 'turret :position (vec2 10 5))))
 
@@ -235,6 +234,10 @@
 (defun game-mouse-position (game)
   (vec2 (+ (mouse-x (input game)) (vec2-x (camera-position (game-camera game))))
         (+ (mouse-y (input game)) (vec2-y (camera-position (game-camera game))))))
+(defun game-mouse-position->unit (game)
+  (let ((original (game-mouse-position game)))
+    (vec2 (pixel->unit (vec2-x original))
+          (pixel->unit (vec2-y original)))))
 (defun gameplay-frame (game delta-time)
   (clear-color (renderer game) (color 10 10 20 255))
   ;; Game play elements
@@ -303,7 +306,7 @@
             ((is-mouse-left-down (input game))
              (let ((active-turret (position-if #'turret-active-p (turrets room))))
                (when active-turret
-                 (fire-turret (aref (turrets room) active-turret) game (game-mouse-position game))))))))
+                 (fire-turret (aref (turrets room) active-turret) game (game-mouse-position->unit game))))))))
 
   (dotimes (y 3)
     (dotimes (x 3)
@@ -321,6 +324,12 @@
     (update-enemy (aref (enemies game) enemy-index) game delta-time)
     (draw-enemy (aref (enemies game) enemy-index) (renderer game)))
   (delete-if #'enemy-dead-p (enemies game))
+  (draw-filled-rectangle
+   (renderer game)
+   (let ((mouse-x (vec2-x (game-mouse-position game)))
+         (mouse-y (vec2-y (game-mouse-position game))))
+     (rectangle mouse-x
+                mouse-y 16 16)))
 
   ;; UI
   (reset-camera (renderer game)) 

@@ -24,7 +24,15 @@
                              (color 255 0 255 255)))
   )
 
+(defun turret-center-pos (turret)
+  (vec2 (+ 2.5 (vec2-x (turret-position turret)))
+        (+ 2.5 (vec2-y (turret-position turret)))))
+
 (defmethod fire-turret ((turret turret) (game game) position)
-  (let ((direction (vec2-normalize (vec2-sub position (turret-position turret)))))
-    (error "PEW!")
-    ))
+  (let* ((direction (vec2-normalize (vec2-sub position (turret-center-pos turret))))
+         (tip-position (vec2-mul direction 5)))
+    (vector-push
+     (make-instance 'projectile
+                    :direction direction
+                    :position (vec2-add tip-position (turret-center-pos turret)))
+     (projectiles game))))

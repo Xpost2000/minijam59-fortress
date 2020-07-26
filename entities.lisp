@@ -41,6 +41,7 @@
    (dead :accessor dead
          :initform nil)
    (direction :accessor direction
+              :initarg :direction
               :initform (vec2 1 0))
    (projectile-speed :accessor projectile-speed
                      :initform 8)
@@ -48,7 +49,7 @@
              :initform *default-projectile-lifetime*)))
 
 (defun projectile-dead-p (projectile)
-  (or (dead projectile) (<= 0.0 (lifetime projectile))))
+  (or (dead projectile) (<= (lifetime projectile) 0.0)))
 (defgeneric draw-projectile (projectile renderer))
 (defgeneric update-projectile (projectile game delta-time))
 (defgeneric hit-projectile (projectile game thing))

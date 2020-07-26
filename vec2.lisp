@@ -28,7 +28,9 @@
     (sqrt (+ (* y y) (* x x)))))
 
 (defun vec2-normalize (a)
-  (vec2-mul a (vec2-magnitude a)))
+  (let ((mag (vec2-magnitude a)))
+    (vec2 (/ (vec2-x a) mag)
+          (/ (vec2-y a) mag))))
 
 (defun vec2->sdl-point (vec)
   (sdl2:make-point
