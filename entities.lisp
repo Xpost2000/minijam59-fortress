@@ -44,7 +44,7 @@
               :initarg :direction
               :initform (vec2 1 0))
    (projectile-speed :accessor projectile-speed
-                     :initform 8)
+                     :initform 16)
    (lifetime :accessor lifetime
              :initform *default-projectile-lifetime*)))
 
@@ -54,6 +54,7 @@
 (defgeneric update-projectile (projectile game delta-time))
 (defgeneric hit-projectile (projectile game thing))
 
+(defparameter *default-turret-fire-cooldown* 0.35)
 (defclass turret ()
   (;; storing absolute position
    ;; even though turrets can only be a part of a room
@@ -100,9 +101,10 @@
                                   :element-type 'turret
                                   :adjustable nil
                                   :fill-pointer 0))))
+(defclass danger-room (game-room) ())
+(defclass entrance-room (game-room) ())
+(defclass breach-entrance-room (game-room) ())
 
-(defun add-turret-to-room (room turret)
-  (vector-push turret (turrets room)))
 (defun reset-turret-active-status (room)
   (dotimes (turret-index (length (turrets room)))
     (setf (active (aref (turrets room) turret-index)) nil)))

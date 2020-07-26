@@ -1,5 +1,13 @@
 (in-package :mjgame)
 
+
+(defun turret-center-pos (turret)
+  (vec2 (+ 2.5 (vec2-x (turret-position turret)))
+        (+ 2.5 (vec2-y (turret-position turret)))))
+
+(defun can-fire (turret)
+  (<= (fire-cooldown turret) 0.0))
+
 (defun get-bounding-box-turret (turret)
   (rectangle (vec2-x (turret-position turret))
              (vec2-y (turret-position turret))
@@ -10,8 +18,8 @@
   ;; empty
   )
 (defmethod update-turret ((turret turret) (game game) delta-time)
-  
-  )
+  (when (not (can-fire turret))
+    (decf (fire-cooldown turret) delta-time)))
 
 (defmethod draw-turret ((turret turret) (renderer renderer))
   (draw-filled-rectangle renderer 
@@ -21,18 +29,14 @@
                                     (unit 5))
                          (if (active turret)
                              (color 0 255 255 255)
-                             (color 255 0 255 255)))
-  )
-
-(defun turret-center-pos (turret)
-  (vec2 (+ 2.5 (vec2-x (turret-position turret)))
-        (+ 2.5 (vec2-y (turret-position turret)))))
+                             (color 255 0 255 255))))
 
 (defmethod fire-turret ((turret turret) (game game) position)
-  (let* ((direction (vec2-normalize (vec2-sub position (turret-center-pos turret))))
-         (tip-position (vec2-mul direction 5)))
-    (vector-push
-     (make-instance 'projectile
-                    :direction direction
-                    :position (vec2-add tip-position (turret-center-pos turret)))
-     (projectiles game))))
+  (when (can-fire turret)
+    (let* ((direction (vec2-normalize (vec2-sub position (turret-center-pos turret))))
+           (tip-position (vec2-mul direction 5)))
+      (vector-push (make-instance 'projectile
+                                  :direction direction
+                                  :position (vec2-add tip-position (turret-center-pos turret)))
+                   (projectiles game))
+      (setf (fire-cooldown turret) *default-turret-fire-cooldown*))))

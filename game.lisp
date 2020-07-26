@@ -40,6 +40,9 @@
 (defconstant +max-enemies-in-game+ 2048)
 (defconstant +max-projectiles-in-game+ 2048)
 
+;; should change every round or so?
+(defconstant +default-enemy-spawn-cooldown+ 2.5)
+
 (defclass game (window)
   ((camera :accessor game-camera
            :initform (make-camera))
@@ -47,6 +50,18 @@
           :initform (make-instance 'screen-fade)) 
    (state :accessor state
           :initform :mainmenu)
+   (points :accessor points :initform 0)
+   (score :accessor score :initform 0)
+   (enemy-spawn-cooldown :accessor enemy-spawn-cooldown
+                         :initform 0)
+   (remaining-enemies-to-spawn :accessor remaining-enemies-to-spawn
+                               :initform 0)
+
+   (current-round :accessor current-round
+                  :initform 1)
+   (round-started :accessor round-started
+                  :initform nil)
+
    (enemies :accessor enemies
             :initform (make-array
                        +max-enemies-in-game+
@@ -71,6 +86,32 @@
 (defvar *can-move*)
 
 ;; TODO game reset!
+(defun can-spawn-enemy (game)
+  (<= (enemy-spawn-cooldown game) 0))
+
+;; requires context to make a more fair random.
+(defun random-type-of-enemy (game) 'enemy)
+(defun random-room-floor ()
+  (random 3))
+
+(defun spawn-enemy (game &key floor (type 'enemy))
+  (setf (enemy-spawn-cooldown game) +default-enemy-spawn-cooldown+)
+  (decf (remaining-enemies-to-spawn game))
+  (vector-push (make-instance type :location (make-room-location :y floor)) (enemies game)))
+
+(defun start-round (game)
+  (unless (round-started game)
+    (print "END ROUND")
+    (setf (round-started game) t)
+    (setf (remaining-enemies-to-spawn game) 15)))
+
+(defun end-round (game)
+  (when (round-started game)
+    (print "START ROUND!")
+    (reset-turret-active-status-on-all-rooms game)
+    (incf (current-round game))
+    (setf (round-started game) nil)))
+
 (defmethod window-setup ((game game))
   (setf *can-move* t)
   ;; this context is nasty...
@@ -87,27 +128,34 @@
                         :neutral (load-image (renderer game) "resources/images/player-face-neutral.png")
                         :hurt (load-image (renderer game) "resources/images/player-face-hurt.png")))
   (setf *room-images* (list
-                         (load-image (renderer game) "resources/images/room-danger.png")
-                         (load-image (renderer game) "resources/images/room-bunker.png")
-                         (load-image (renderer game) "resources/images/vault_entrance_a.png")))
+                       :breached-wall
+                       (load-image (renderer game) "resources/images/room-wall-breach.png")
+                       :danger-zone
+                       (load-image (renderer game) "resources/images/room-danger.png")
+                       :bunker
+                       (load-image (renderer game) "resources/images/room-bunker.png")
+                       :vault-entrance
+                       (load-image (renderer game) "resources/images/vault_entrance_a.png")))
 
   ;; build rooms
   (setf (rooms game)
         (make-array '(3 3)
                     :initial-contents
                     (list
-                     (list (make-instance 'game-room) (make-instance 'game-room) (make-instance 'game-room))
-                     (list (make-instance 'game-room) (make-instance 'game-room) (make-instance 'game-room))
-                     (list (make-instance 'game-room) (make-instance 'game-room) (make-instance 'game-room)))
+                     (list (make-instance 'entrance-room) (make-instance 'game-room) (make-instance 'danger-room))
+                     (list (make-instance 'breach-entrance-room) (make-instance 'game-room) (make-instance 'danger-room))
+                     (list (make-instance 'breach-entrance-room) (make-instance 'game-room) (make-instance 'danger-room)))
                     ))
-  ;; room y is the only argument that actually affects our enemy.
-  ;; I can make it so room-x also does something
-  ;; (vector-push (make-instance 'enemy :location (make-room-location :y 0)) (enemies game))
-  ;; (vector-push (make-instance 'enemy :location (make-room-location :y 1)) (enemies game))
-  ;; (vector-push (make-instance 'enemy :location (make-room-location :y 2)) (enemies game))
-  (add-turret-to-room (aref (rooms game) 0 1) (make-instance 'turret :position (vec2 55 5)))
-  (add-turret-to-room (aref (rooms game) 0 0)
-                      (make-instance 'turret :position (vec2 10 5))))
+
+  ;; Default turrets are always in the room with the "player"
+  ;; as a fallback anyways.
+  ;; (add-turret-to-room (aref (rooms game) 0 1) (make-instance 'turret :position (vec2 55 5)))
+  ;; (add-turret-to-room (aref (rooms game) 0 0) (make-instance 'turret :position (vec2 10 5)))
+
+  (add-turret-to-room (aref (rooms game) 0 2) 2 0 (make-instance 'turret :position (vec2 (* *room-width* 2.2) 10)))
+  (add-turret-to-room (aref (rooms game) 1 2) 2 1 (make-instance 'turret :position (vec2 (* *room-width* 2.2) (+ *room-max-height* 4))))
+  (add-turret-to-room (aref (rooms game) 2 2) 2 2 (make-instance 'turret :position (vec2 (* *room-width* 2.2) (+ (* 2 *room-max-height*) 4))))
+)
 
 (defun draw-filled-bar-range (renderer
                               value
@@ -144,7 +192,7 @@
           (clamp
            (round (* 128 (+ 1.2 (sin (/ (sdl2:get-ticks) 240)))))
            0 129)))
-    (draw-texture (renderer game) (elt *room-images* 0)
+    (draw-texture (renderer game) (getf *room-images* :danger-zone)
                   :dest (rectangle 0 0 (width game) (height game))
                   :color (color light-power light-power light-power 255))
     (draw-texture (renderer game) *player-base*
@@ -238,6 +286,63 @@
   (let ((original (game-mouse-position game)))
     (vec2 (pixel->unit (vec2-x original))
           (pixel->unit (vec2-y original)))))
+
+(defun refund-and-destroy-turret-at (game room x y position)
+  (let ((turret-under-mouse (first-turret-under-position game room (game-mouse-position->unit game))))
+    (when turret-under-mouse (delete (aref (turrets room) turret-under-mouse) (turrets room)))))
+(defun buy-and-build-turret-at (game room x y position)
+  (let ((turret-under-mouse (first-turret-under-position game room (game-mouse-position->unit game))))
+    (unless turret-under-mouse (add-turret-to-room room x y (make-instance 'turret :position (game-mouse-position->unit game))))))
+
+(defun reset-turret-active-status-on-all-rooms (game)
+  (dotimes (y 3)
+    (dotimes (x 3)
+      (with-room ((vec2 x y) room)
+                 (reset-turret-active-status room)))))
+
+(defun find-room-for-position (position game)
+  (dotimes (y 3)
+    (dotimes (x 3)
+      (let ((room-rect (room-get-bounding-box (aref (rooms game) y x) x y))
+            (rect (rectangle (vec2-x position) (vec2-y position) 1 1)))
+        (when (rectangle-intersection room-rect rect)
+          (return-from find-room-for-position (values x y))))))
+  (values 0 0))
+
+(defun first-turret-under-position (game room position)
+  (position-if
+   #'(lambda (item)
+       (rectangle-intersection
+          (rectangle (vec2-x position) (vec2-y position) 0 0)
+        (get-bounding-box-turret item)))
+   (turrets room)))
+
+(defun room-has-enemy (game location)
+  (dotimes (enemy-index (length (enemies game)))
+    (let ((current-enemy (aref (enemies game) enemy-index)))
+      (when (vec2-= (location-room-position->vec2 (location current-enemy)) location)
+        (return-from room-has-enemy t))))
+  (return-from room-has-enemy nil))
+
+(defun draw-minimap (game renderer position)
+  (let ((rect-width 80)
+        (rect-height 50))
+    (dotimes (y 3)
+      (dotimes (x 3)
+        (let ((rect (rectangle (+ (vec2-x position) (* x rect-width))
+                               (+ (vec2-y position) (* y rect-height))
+                               rect-width
+                               rect-height)))
+        (with-room ((location (player game)) player-room)
+                   (with-room ((vec2 x y) room)
+                              (cond ((and (eq room player-room) (room-has-enemy game (vec2 x y)))
+                                     (draw-filled-rectangle renderer rect +color-green+))
+                                    ((room-has-enemy game (vec2 x y))
+                                     (draw-filled-rectangle renderer rect +color-red+))
+                                    ((eq room player-room)
+                                     (draw-rectangle renderer rect +color-green+))
+                                    (t (draw-rectangle renderer rect +color-red+))))))))))
+
 (defun gameplay-frame (game delta-time)
   (clear-color (renderer game) (color 10 10 20 255))
   ;; Game play elements
@@ -252,6 +357,7 @@
       (multiple-value-bind (new-location moved-p) (clamp-player-location (player game)) 
         (vec2-decf (location (player game)) move-dir)  ;; stupid hack to undo movement for looks
         (when moved-p
+          (reset-turret-active-status-on-all-rooms game)
           (setf *can-move* nil)
           (start-fade (fader game)
                       :length 0.15
@@ -266,47 +372,57 @@
                                                  :color +color-black+
                                                  :direction :fade-in
                                                  :on-finish #'(lambda ()
-                                                                (setf *can-move* t)))))
-          ))))
+                                                                (setf *can-move* t)))))))))
 
 
   ;; player input
 
   ;; DEBUG!
+  (when (is-key-pressed (input game) :scancode-e)
+    (dotimes (enemy-index (length (enemies game)))
+      (setf (ranged-value-current (health (aref (enemies game) enemy-index))) 0)))
   (when (is-key-pressed (input game) :scancode-r)
     (setf (ranged-value-current (energy (player game))) 100))
 
   (when (is-key-pressed (input game) :scancode-escape)
     (setf (state game) :mainmenu))
+  (if (and (round-started game) (and (> (remaining-enemies-to-spawn game) 0) (length (enemies game))))
+      (progn
+        (if (can-spawn-enemy game)
+            (progn
+              (spawn-enemy game :floor (random-room-floor)
+                                :type (random-type-of-enemy game)))
+            (decf (enemy-spawn-cooldown game) delta-time))
 
-  (with-room ((location (player game)) room)
-    (when (is-key-pressed (input game) :scancode-a)
-      (sdl2-mixer:play-channel -1 *test-sound-chunk* 0) 
-      (ranged-value-decf (health (player game)) 15))
-    (when (is-key-pressed (input game) :scancode-space)
-      (toggle-door room))
-    ;; check mouse stuff I guess.
+        (with-room ((location (player game)) room)
+                   (when (is-key-pressed (input game) :scancode-a)
+                     (sdl2-mixer:play-channel -1 *test-sound-chunk* 0) 
+                     (ranged-value-decf (health (player game)) 15))
+                   (when (is-key-pressed (input game) :scancode-space)
+                     (toggle-door room))
+                   ;; check mouse stuff I guess.
 
-    (let ((turret-under-mouse (position-if
-                               #'(lambda (item)
-                                   (rectangle-intersection
-                                    (let ((mouse-x (vec2-x (game-mouse-position game)))
-                                          (mouse-y (vec2-y (game-mouse-position game))))
-                                      (rectangle (pixel->unit mouse-x)
-                                                 (pixel->unit mouse-y) 0 0))
-                                    (get-bounding-box-turret item)))
-                               (turrets room))))
-      (cond ((and turret-under-mouse (is-mouse-left-down (input game)))
+                   (let ((turret-under-mouse (first-turret-under-position game room (game-mouse-position->unit game))))
+                     (cond ((and turret-under-mouse (is-mouse-left-down (input game)))
+                            (reset-turret-active-status-on-all-rooms game)
+                            (setf (active (aref (turrets room) turret-under-mouse)) t))
+                           ((is-mouse-left-down (input game))
+                            (let ((active-turret (position-if #'turret-active-p (turrets room))))
+                              (when active-turret
+                                (fire-turret (aref (turrets room) active-turret) game (game-mouse-position->unit game)))))))))
+      (end-round game))
+ 
+  (multiple-value-bind (x y) (find-room-for-position (game-mouse-position->unit game) game)
+    (unless (round-started game)
+      (with-room ((vec2 x y) room)
+                 (cond
+                   ((is-mouse-right-clicked (input game))
+                    (refund-and-destroy-turret-at game room x y (game-mouse-position->unit game)))
+                   ((is-mouse-left-clicked (input game))
+                    (buy-and-build-turret-at game room x y (game-mouse-position->unit game)))))))
 
-             (dotimes (y 3)
-               (dotimes (x 3)
-                 (with-room ((vec2 x y) room)
-                            (reset-turret-active-status room))))
-             (setf (active (aref (turrets room) turret-under-mouse)) t))
-            ((is-mouse-left-down (input game))
-             (let ((active-turret (position-if #'turret-active-p (turrets room))))
-               (when active-turret
-                 (fire-turret (aref (turrets room) active-turret) game (game-mouse-position->unit game))))))))
+  (when (is-key-pressed (input game) :scancode-space)
+    (start-round game))
 
   (dotimes (y 3)
     (dotimes (x 3)
@@ -323,16 +439,21 @@
   (dotimes (enemy-index (length (enemies game)))
     (update-enemy (aref (enemies game) enemy-index) game delta-time)
     (draw-enemy (aref (enemies game) enemy-index) (renderer game)))
+  ;; fixed 200 points I suppose.
+  (incf (score game) (* 200 (count-if #'enemy-dead-p (enemies game))))
   (delete-if #'enemy-dead-p (enemies game))
-  (draw-filled-rectangle
-   (renderer game)
-   (let ((mouse-x (vec2-x (game-mouse-position game)))
-         (mouse-y (vec2-y (game-mouse-position game))))
-     (rectangle mouse-x
-                mouse-y 16 16)))
+  
 
   ;; UI
   (reset-camera (renderer game)) 
+  (let ((light-power
+          (clamp
+           (round (* 128 (+ 1.2 (sin (/ (sdl2:get-ticks) 240)))))
+           0 129)))
+    (draw-filled-rectangle (renderer game)
+                           (rectangle 0 0 (width game) (height game))
+                           (color 0 0 0 light-power)))
+
   (draw-filled-bar-range (renderer game) (health (player game))
                          :position (vec2 10 10)
                          :size (vec2 600 30)
@@ -352,13 +473,17 @@
                          :size (vec2 600 30)
                          :fill-color +color-blue+
                          :background-color +color-red+)
-  (draw-string (renderer game)
-               (format nil "(~a, ~a)"
-                       (ranged-value-current (energy (player game)))
-                       (ranged-value-max (energy (player game))))
-               *game-font*
-               (vec2 20 55)
-               :size 24)
+
+  (draw-minimap game (renderer game) (vec2 1020 10))
+
+  (if (round-started game)
+      (draw-string (renderer game)
+                   (format nil "(~a, ~a)"
+                           (ranged-value-current (energy (player game)))
+                           (ranged-value-max (energy (player game))))
+                   *game-font*
+                   (vec2 20 55)
+                   :size 24))
 
   (draw-string (renderer game)
                (format nil "room (~a, ~a)"
@@ -368,30 +493,27 @@
                (vec2 630 0)
                :size 30)
   (draw-string (renderer game)
-               "*INSERT SCORE* THEN *POINTS TO BUY STUFF*"
+               (format nil "POINTS : ~a" (points game))
+               *game-font*
+               (vec2 700 90)
+               :size 40)
+  (draw-string (renderer game)
+               (format nil "SCORE : ~a" (score game))
                *game-font*
                (vec2 700 45)
                :size 40)
 
-  (let ((mouse-x (mouse-x (input game)))
-        (mouse-y (mouse-y (input game))))
-    (with-room ((location (player game)) room)
-               (draw-string (renderer game)
-                            (write-to-string (aref (turrets room) 0))
-                            *game-font*
-                            (vec2 0 518)
-                            :size 16)
-               (draw-string (renderer game)
-                            (write-to-string (length (turrets room)))
-                            *game-font*
-                            (vec2 0 534)
-                            :size 16))
-      (draw-string (renderer game)
-                   (write-to-string (vec2 (pixel->unit mouse-x)
-                                          (pixel->unit mouse-y)))
-                   *game-font*
-                   (vec2 0 500)
-                   :size 16))
+  (with-room ((location (player game)) room)
+             (draw-string (renderer game)
+                          (write-to-string (aref (turrets room) 0))
+                          *game-font*
+                          (vec2 0 518)
+                          :size 16)
+             (draw-string (renderer game)
+                          (write-to-string (length (turrets room)))
+                          *game-font*
+                          (vec2 0 534)
+                          :size 16))
 
   (when (player-dead-p (player game))
     (start-fade (fader game)

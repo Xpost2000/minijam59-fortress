@@ -49,7 +49,7 @@
 ;; BAD!
 (defmacro find-button ((button button-in) &rest body)
   `(let ((,button (case ,button-in
-                    (1 'left-down) (2 'middle-down) (3 'middle-down))))
+                    (1 'left-down) (2 'middle-down) (3 'right-down))))
      ,@body))
 (defun input-handle-mouse-button-up (input button state clicks)
   (find-button (button button)
@@ -101,6 +101,21 @@
 (defun is-key-pressed (input scancode)
   (and (input-state-is-key-down (last-state input) scancode)
        (not (input-state-is-key-down (current-state input) scancode))))
+
+(defun is-mouse-left-clicked (input)
+  (and 
+   (input-state-mouse-left-down (last-state input))
+   (not (input-state-mouse-left-down (current-state input)))))
+
+(defun is-mouse-middle-clicked (input)
+  (and 
+   (input-state-mouse-middle-down (last-state input))
+   (not (input-state-mouse-middle-down (current-state input)))))
+
+(defun is-mouse-right-clicked (input)
+  (and 
+   (input-state-mouse-right-down (last-state input))
+   (not (input-state-mouse-right-down (current-state input)))))
 
 (defun is-mouse-left-down (input)
   (input-state-mouse-left-down (current-state input)))

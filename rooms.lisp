@@ -1,8 +1,10 @@
 (in-package :mjgame)
 
-;; TURRET STUFF
-
 ;; ROOM STUFF
+
+(defmethod close-door ((room danger-room)))
+(defmethod open-door ((room danger-room)))
+(defmethod toggle-door ((room danger-room)))
 
 (defmethod close-door ((room game-room))
   (when (barrier-door-open room)
@@ -64,26 +66,17 @@
               *room-width*
               *room-max-height*))
 
-(defmethod draw-room ((room game-room) renderer x y)
+(defun add-turret-to-room (room x y turret)
+  ;; TODO(check for conflicting turrets!)
+  (when (rectangle-intersection (get-bounding-box-turret turret)
+                                (room-get-bounding-box room x y))
+    (vector-push turret (turrets room))))
+
+(defmethod draw-room :after (room renderer x y)
   (let ((room-x (* *room-width* x))
         (room-y (* *room-max-height* y)))
-    (draw-filled-rectangle renderer 
-                           (rectangle (unit room-x) (unit room-y)
-                                      (unit *room-width*)
-                                      (unit *room-max-height*))
-                           +color-red+)
-    ;; floor
-    (draw-filled-rectangle renderer 
-                           (rectangle (unit room-x)
-                                      (unit (+ room-y (- *room-max-height* *room-floor-height*)))
-                                      (unit (- *room-width* 1))
-                                      (unit (- *room-floor-height* 1)))
-                           +color-blue+)
-
     (dotimes (turret-index (length (turrets room)))
       (draw-turret (aref (turrets room) turret-index) renderer))
-
-    ;; door boundary
     (unless (barrier-door-open room)
       (draw-filled-rectangle renderer 
                              (rectangle (unit (- (+ room-x *room-width*) *door-width*))
@@ -91,3 +84,41 @@
                                         (unit *door-width*)
                                         (unit (- *room-max-height* 1)))
                              +color-green+))))
+
+(defmethod draw-room ((room danger-room) renderer x y)
+  (let ((room-x (* *room-width* x))
+        (room-y (* *room-max-height* y)))
+    (draw-texture renderer (getf *room-images* :danger-zone)
+                  :dest (rectangle (unit room-x) (unit room-y)
+                                   (unit *room-width*)
+                                   (unit *room-max-height*)))
+
+    (draw-texture renderer *player-base*
+                  :dest (rectangle (unit (+ room-x 35)) (unit (+ room-y 14)) (* 64 5) (* 64 5))) 
+    ;; TODO make head float up and down
+    (draw-texture renderer (getf *player-faces* :neutral)
+              :dest (rectangle (unit (+ room-x 35)) (unit (+ room-y 9)) (* 64 5) (* 64 5)))))
+
+(defmethod draw-room ((room entrance-room) renderer x y)
+  (let ((room-x (* *room-width* x))
+        (room-y (* *room-max-height* y)))
+    (draw-texture renderer (getf *room-images* :vault-entrance)
+                  :dest (rectangle (unit room-x) (unit room-y)
+                                   (unit *room-width*)
+                                   (unit *room-max-height*)))))
+
+(defmethod draw-room ((room breach-entrance-room) renderer x y)
+  (let ((room-x (* *room-width* x))
+        (room-y (* *room-max-height* y)))
+    (draw-texture renderer (getf *room-images* :breached-wall)
+                  :dest (rectangle (unit room-x) (unit room-y)
+                                   (unit *room-width*)
+                                   (unit *room-max-height*)))))
+
+(defmethod draw-room ((room game-room) renderer x y)
+  (let ((room-x (* *room-width* x))
+        (room-y (* *room-max-height* y)))
+    (draw-texture renderer (getf *room-images* :bunker)
+                  :dest (rectangle (unit room-x) (unit room-y)
+                                   (unit *room-width*)
+                                   (unit *room-max-height*)))))

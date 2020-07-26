@@ -27,6 +27,10 @@
         (x (vec2-x a)))
     (sqrt (+ (* y y) (* x x)))))
 
+(defun vec2-= (a b)
+  (and (= (vec2-x a) (vec2-x b))
+       (= (vec2-y a) (vec2-y b))))
+
 (defun vec2-normalize (a)
   (let ((mag (vec2-magnitude a)))
     (vec2 (/ (vec2-x a) mag)
