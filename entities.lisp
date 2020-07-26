@@ -34,6 +34,45 @@
    (on-finish :accessor on-finish
               :initarg on-finish)))
 
+(defparameter *default-projectile-lifetime* 6.0)
+(defclass projectile ()
+  ((position :accessor projectile-position
+             :initarg :position)
+   (dead :accessor dead
+         :initform nil)
+   (projectile-speed :accessor projectile-speed
+                     :initform 8)
+   (lifetime :accessor lifetime
+             :initform *default-projectile-lifetime*)))
+
+(defun projectile-dead-p (projectile)
+  (or (dead projectile) (<= 0.0 (lifetime projectile))))
+(defgeneric draw-projectile (projectile renderer))
+(defgeneric update-projectile (projectile game delta-time))
+(defgeneric hit-projectile (projectile game thing))
+
+(defclass turret ()
+  (;; storing absolute position
+   ;; even though turrets can only be a part of a room
+   (position :accessor turret-position
+             :initarg :position
+             :initform (vec2 0 0))
+   (health :accessor health
+           :initarg :health
+           :initform (ranged 0 100 :max))
+   (fire-cooldown :accessor fire-cooldown
+                  :initform 0.0)
+
+   ;; whether it is the selected turret.
+   (active :accessor active
+           :initform nil)))
+(defun turret-dead-p (turret)
+  (<= 0 (ranged-value-current (health turret))))
+(defgeneric draw-turret (turret renderer))
+(defgeneric update-turret (turret game delta-time))
+(defgeneric reload-turret (turret))
+(defgeneric fire-turret (turret game))
+
 ;; all are in units
 (defparameter *room-width* 50)
 (defparameter *room-max-height* 30)
@@ -42,13 +81,22 @@
 (defparameter *door-width* 2)
 
 (defparameter *power-deduction-wait-time* 3.5) ;; seconds
+(defconstant *max-turrets-in-room* 16)
 
 ;; Should I lerp animate the door?
 (defclass game-room ()
   ((power-usage-timer :accessor power-usage-timer
                       :initform 0.0)
    (barrier-door-open :accessor barrier-door-open
-                      :initform t)))
+                      :initform t)
+   (turrets :accessor turrets
+            :initform (make-array *max-turrets-in-room*
+                                  :element-type 'turret
+                                  :adjustable nil
+                                  :fill-pointer 0))))
+
+(defun add-turret-to-room (room turret)
+  (vector-push turret (turrets room)))
 
 (defgeneric draw-room (room renderer x y))
 (defgeneric room-using-power? (room))
@@ -66,6 +114,9 @@
   ;; units
   (x 0)
   (y 0))
+
+(defun make-room-location (&key (x 0) (y 0))
+  (make-location :room-x x :room-y y))
 
 (defun location-update-position (location x y)
   (setf (location-x location) x)
@@ -100,6 +151,9 @@
    (size :accessor size
          :initarg :size
          :initform (vec2 3.5 4.55))))
+
+(defun hurt-enemy (enemy amount)
+  (ranged-value-decf (health enemy) amount))
 
 (defun enemy-dead-p (enemy)
   (<= (ranged-value-current (health enemy)) 0))

@@ -38,6 +38,7 @@
                  (ranged-value-max ranged))))
 
 (defconstant +max-enemies-in-game+ 2048)
+(defconstant +max-projectiles-in-game+ 2048)
 
 (defclass game (window)
   ((camera :accessor game-camera
@@ -45,17 +46,33 @@
    (fader :accessor fader
           :initform (make-instance 'screen-fade)) 
    (state :accessor state
-          :initform :gameplay)
+          :initform :mainmenu)
    (enemies :accessor enemies
             :initform (make-array
                        +max-enemies-in-game+
                        :element-type 'enemy
                        :fill-pointer 0))
+   (projectiles :accessor projectiles
+                :initform (make-array
+                           +max-projectiles-in-game+
+                           :element-type 'projectile
+                           :fill-pointer 0))
    (rooms :accessor rooms)
    (player :accessor player
            :initform (make-instance 'player))))
 
+;; image constants
+;; not storing as part of game state
+(defvar *player-base*) ;; altar thing?
+(defvar *player-faces*) ;; player face
+
+(defvar *room-images*)
+(defvar *main-menu-image*)
+(defvar *can-move*)
+
+;; TODO game reset!
 (defmethod window-setup ((game game))
+  (setf *can-move* t)
   ;; this context is nasty...
   (setf *game-window* game)
   (setf *game-font* (load-font (renderer game)
@@ -63,6 +80,16 @@
 
   (setf *test-sound-chunk* (sdl2-mixer:load-wav "resources/sound/wave_finished.wav"))
   (print *test-sound-chunk*)
+
+  (setf *main-menu-image* (load-image (renderer game) "resources/images/title.png"))
+  (setf *player-base* (load-image (renderer game) "resources/images/player-altar.png"))
+  (setf *player-faces* (list
+                        :neutral (load-image (renderer game) "resources/images/player-face-neutral.png")
+                        :hurt (load-image (renderer game) "resources/images/player-face-hurt.png")))
+  (setf *room-images* (list
+                         (load-image (renderer game) "resources/images/room-danger.png")
+                         (load-image (renderer game) "resources/images/room-bunker.png")
+                         (load-image (renderer game) "resources/images/vault_entrance_a.png")))
 
   ;; build rooms
   (setf (rooms game)
@@ -73,8 +100,12 @@
                      (list (make-instance 'game-room) (make-instance 'game-room) (make-instance 'game-room))
                      (list (make-instance 'game-room) (make-instance 'game-room) (make-instance 'game-room)))
                     ))
-  (vector-push (make-instance 'enemy) (enemies game))
-  )
+  ;; room y is the only argument that actually affects our enemy.
+  ;; I can make it so room-x also does something
+  (vector-push (make-instance 'enemy :location (make-room-location :y 0)) (enemies game))
+  (vector-push (make-instance 'enemy :location (make-room-location :y 1)) (enemies game))
+  (vector-push (make-instance 'enemy :location (make-room-location :y 2)) (enemies game))
+  (add-turret-to-room (aref (rooms game) 0 2) (make-instance 'turret :position (vec2 40 5))))
 
 (defun draw-filled-bar-range (renderer
                               value
@@ -104,15 +135,62 @@
 
 
 (defun mainmenu-frame (game delta-time)
-  )
+  (clear-color (renderer game) (color 0 0 0 255))
+  (reset-camera (renderer game)) 
+  ;; background scene
+  (let ((light-power
+          (clamp
+           (round (* 128 (+ 1.2 (sin (/ (sdl2:get-ticks) 240)))))
+           0 129)))
+    (draw-texture (renderer game) (elt *room-images* 0)
+                  :dest (rectangle 0 0 (width game) (height game))
+                  :color (color light-power light-power light-power 255))
+    (draw-texture (renderer game) *player-base*
+                  :dest (rectangle 940 360 (* 64 5) (* 64 5))) 
+    ;; TODO make head float up and down
+    (draw-texture (renderer game) (getf *player-faces* :neutral)
+              :dest (rectangle 940 230 (* 64 5) (* 64 5)))
+
+    (draw-filled-rectangle (renderer game)
+                           (rectangle 0 0 (width game) (height game))
+                           (color 0 0 0 light-power)))
+  ;; end of background scene
+  (draw-texture (renderer game) *main-menu-image*
+                :dest (rectangle
+                       (- (/ (width game) 2) (* 150 1.25))
+                       0 (* 300 1.25)
+                       (* 225 1.25)))
+  (draw-string (renderer game)
+               "Enter To Start Game" *game-font*
+               (vec2 445 470)
+               :size 36)
+  (draw-string (renderer game)
+               "Escape To Exit to Windows" *game-font*
+               (vec2 445 515)
+               :size 36)
+
+  (cond
+    ((is-key-pressed (input game) :scancode-escape) (sdl2:push-event :quit))
+    ((is-key-pressed (input game) :scancode-return) (setf (state game) :gameplay))))
 
 (defun gameover-frame (game delta-time)
   (clear-color (renderer game) (color 10 10 10 255))
+  (reset-camera (renderer game)) 
   (draw-string (renderer game)
-               "GAME OVER" *game-font* (vec2 0 0)
-               :color +color-green+))
-
-(defparameter *can-move* t)
+               "GAME OVER" *game-font* (vec2 380 200)
+               :color +color-red+
+               :size 128)
+  (draw-string (renderer game)
+               "Enter To Restart Game" *game-font*
+               (vec2 405 365)
+               :size 36)
+  (draw-string (renderer game)
+               "Escape To Return To Main Menu" *game-font*
+               (vec2 405 415)
+               :size 36)
+  (cond
+    ((is-key-pressed (input game) :scancode-escape) (setf (state game) :mainmenu))
+    ((is-key-pressed (input game) :scancode-return) (setf (state game) :gameplay))))
 
 (defun get-player-move-direction (game)
   (when *can-move*
@@ -149,8 +227,7 @@
     `(let* ((x-pos (vec2-x ,position))
             (y-pos (vec2-y ,position))
             (,room (aref (rooms game) y-pos x-pos)))
-       ,@body
-       )))
+       ,@body)))
 
 (defun gameplay-frame (game delta-time)
   (clear-color (renderer game) (color 10 10 20 255))
@@ -163,8 +240,8 @@
   (let ((move-dir (get-player-move-direction game)))
     (when move-dir
       (vec2-incf (location (player game)) move-dir)
-      (multiple-value-bind (new-location moved-p) (clamp-player-location (player game))
-        (setf (location (player game)) new-location)
+      (multiple-value-bind (new-location moved-p) (clamp-player-location (player game)) 
+        (vec2-decf (location (player game)) move-dir)  ;; stupid hack to undo movement for looks
         (when moved-p
           (setf *can-move* nil)
           (start-fade (fader game)
@@ -173,9 +250,10 @@
                       :color +color-black+ 
                       :direction :fade-out
                       :on-finish #'(lambda ()
+                                     (setf (location (player game)) new-location)
                                      (start-fade (fader game)
                                                  :length 0.25
-                                                 :linger-length 0.2
+                                                 :linger-length 0.4
                                                  :color +color-black+
                                                  :direction :fade-in
                                                  :on-finish #'(lambda ()
@@ -189,12 +267,17 @@
   (when (is-key-pressed (input game) :scancode-r)
     (setf (ranged-value-current (energy (player game))) 100))
 
+  (when (is-key-pressed (input game) :scancode-escape)
+    (setf (state game) :mainmenu))
+
   (with-room ((location (player game)) room)
     (when (is-key-pressed (input game) :scancode-a)
       (sdl2-mixer:play-channel -1 *test-sound-chunk* 0) 
       (ranged-value-decf (health (player game)) 15))
     (when (is-key-pressed (input game) :scancode-space)
-      (toggle-door room)))
+      (toggle-door room))
+    ;; check mouse stuff I guess.
+    )
 
   (dotimes (y 3)
     (dotimes (x 3)
@@ -202,9 +285,16 @@
                  (update-room room game delta-time) 
                  (draw-room room (renderer game) x y))))
 
+  ;; eh I should for each this
+  (dotimes (projectile-index (length (projectiles game)))
+    (update-projectile (aref (projectiles game) projectile-index) game delta-time)
+    (draw-projectile (aref (projectiles game) projectile-index) (renderer game)))
+  (delete-if #'projectile-dead-p (projectiles game))
+
   (dotimes (enemy-index (length (enemies game)))
     (update-enemy (aref (enemies game) enemy-index) game delta-time)
     (draw-enemy (aref (enemies game) enemy-index) (renderer game)))
+  (delete-if #'enemy-dead-p (enemies game))
 
   ;; UI
   (reset-camera (renderer game)) 

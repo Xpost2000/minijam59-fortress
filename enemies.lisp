@@ -7,10 +7,11 @@
              (vec2-y (size enemy))))
 
 (defun align-enemy-to-room-floor (enemy)
-  (setf (location-y (location enemy))
-        (- (+ (location-room-y (location enemy))
-              (- *room-max-height* *room-floor-height*))
-           (vec2-y (size enemy)))))
+  (let ((room-y (* (location-room-y (location enemy))
+                   *room-max-height*)))
+    (setf (location-y (location enemy))
+          (- (- (+ room-y *room-max-height*) *room-floor-height*)
+             (vec2-y (size enemy))))))
 
 ;; recalculate room position
 ;; I should probably check the array dimensions itself

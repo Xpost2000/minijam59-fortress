@@ -1,6 +1,9 @@
 (in-package :mjgame)
 
-;; (not (barrier-door-open)) would have been better.
+;; TURRET STUFF
+
+;; ROOM STUFF
+
 (defmethod close-door ((room game-room))
   (when (barrier-door-open room)
     (setf (barrier-door-open room) nil)))
@@ -32,6 +35,11 @@
             (ranged-value-min (energy (player game))))
     (disable-all-devices room))
 
+  (dotimes (turret-index (length (turrets room)))
+    (update-turret (aref (turrets room) turret-index) game delta-time))
+
+  (delete-if #'turret-dead-p (turrets room))
+
   (when (room-using-power? room)
     (incf (power-usage-timer room) delta-time)
 
@@ -42,13 +50,13 @@
 (defun room-get-side-bounding-box (room x y direction)
   ;; x y are technically zero indexed. Un zero them for stuff to work better.
   ;; I technically shouldn't do this here though.... Ugh.
-  (let ((x (1+ x))
-        (y (1+ y)))
+  (let ((x (* x *room-width*))
+        (y (* y *room-max-height*)))
     (case direction
       (:left (rectangle x y 1 *room-max-height*))
-      (:right (rectangle (1- (* x *room-width*)) y 1 *room-max-height*))
+      (:right (rectangle (1- (+ x *room-width*)) y 1 *room-max-height*))
       (:top (rectangle x y *room-width* 1))
-      (:bottom (rectangle x (1- (* *room-max-height* y)) *room-width* 1)))))
+      (:bottom (rectangle x (1- (+ *room-max-height* y)) *room-width* 1)))))
 
 (defun room-get-bounding-box (room x y)
   (rectangle  (* *room-width* x)
@@ -71,6 +79,9 @@
                                       (unit (- *room-width* 1))
                                       (unit (- *room-floor-height* 1)))
                            +color-blue+)
+
+    (dotimes (turret-index (length (turrets room)))
+      (draw-turret (aref (turrets room) turret-index) renderer))
 
     ;; door boundary
     (unless (barrier-door-open room)

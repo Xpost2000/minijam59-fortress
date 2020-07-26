@@ -31,9 +31,13 @@
                (:file "game"
                 :depends-on ("window"
                              "entities"))
-               (:file "rooms"
+               (:file "turret"
                 :depends-on ("game"
                              "entities"))
+               (:file "rooms"
+                :depends-on ("game"
+                             "entities"
+                             "turret"))
                (:file "screenfade"
                 :depends-on ("entities"))
                (:file "enemies"
