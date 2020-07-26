@@ -14,6 +14,7 @@
                (:file "utils")
                (:file "show-messagebox")
                (:file "vec2")
+               (:file "audio")
                (:file "input"
                 :depends-on ("vec2"))
                (:file "rectangle"

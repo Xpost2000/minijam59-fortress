@@ -85,6 +85,8 @@
 (defvar *main-menu-image*)
 (defvar *can-move*)
 
+(defvar *enemy-images*)
+
 ;; TODO game reset!
 (defun can-spawn-enemy (game)
   (<= (enemy-spawn-cooldown game) 0))
@@ -119,8 +121,7 @@
   (setf *game-font* (load-font (renderer game)
                                "resources/fonts/PxPlus_IBM_VGA8.ttf" 98))
 
-  (setf *test-sound-chunk* (sdl2-mixer:load-wav "resources/sound/wave_finished.wav"))
-  (print *test-sound-chunk*)
+  (setf *test-sound-chunk* (load-sound "resources/sound/wave_finished.wav"))
 
   (setf *main-menu-image* (load-image (renderer game) "resources/images/title.png"))
   (setf *player-base* (load-image (renderer game) "resources/images/player-altar.png"))
@@ -136,6 +137,10 @@
                        (load-image (renderer game) "resources/images/room-bunker.png")
                        :vault-entrance
                        (load-image (renderer game) "resources/images/vault_entrance_a.png")))
+
+  (setf *enemy-images* (list
+                        :robtherobot
+                        (load-image (renderer game) "resources/images/evil-rob-the-robot.png")))
 
   ;; build rooms
   (setf (rooms game)
@@ -386,7 +391,7 @@
 
   (when (is-key-pressed (input game) :scancode-escape)
     (setf (state game) :mainmenu))
-  (if (and (round-started game) (and (> (remaining-enemies-to-spawn game) 0) (length (enemies game))))
+  (if (and (round-started game) (or (> (remaining-enemies-to-spawn game) 0) (length (enemies game))))
       (progn
         (if (can-spawn-enemy game)
             (progn
@@ -396,7 +401,7 @@
 
         (with-room ((location (player game)) room)
                    (when (is-key-pressed (input game) :scancode-a)
-                     (sdl2-mixer:play-channel -1 *test-sound-chunk* 0) 
+                     (play-sound *test-sound-chunk*)
                      (ranged-value-decf (health (player game)) 15))
                    (when (is-key-pressed (input game) :scancode-space)
                      (toggle-door room))
@@ -539,7 +544,6 @@
 
 (defmethod window-quit ((game game))
   (renderer-destroy (renderer game))
-  (sdl2-mixer:free-chunk *test-sound-chunk*)
   (show-simple-message-box
    :information
    "Thanks for playing!"
