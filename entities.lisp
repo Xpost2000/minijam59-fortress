@@ -8,9 +8,9 @@
              :initarg :location
              :initform (vec2 0 0)) ;; index into array of rooms.
    (health :accessor health
-           :initform (ranged 0 100 :max))
+           :initform (ranged 0 250 :max))
    (energy :accessor energy
-           :initform (ranged 0 100 :max))))
+           :initform (ranged 0 200 :max))))
 (defun player-dead-p (player)
   (<= (ranged-value-current (health player)) 0))
 
@@ -61,15 +61,18 @@
    (position :accessor turret-position
              :initarg :position
              :initform (vec2 0 0))
+   (aim-direction :accessor direction
+                  :initarg :direction
+                  :initform (vec2 -1 0))
    (health :accessor health
            :initarg :health
            :initform (ranged 0 100 :max))
    (fire-cooldown :accessor fire-cooldown
                   :initform 0.0)
-
    ;; whether it is the selected turret.
    (active :accessor active
            :initform nil)))
+
 (defun turret-active-p (turret)
   (and (not (turret-dead-p turret))
        (active turret)))
@@ -78,7 +81,7 @@
 (defgeneric draw-turret (turret renderer))
 (defgeneric update-turret (turret game delta-time))
 (defgeneric reload-turret (turret))
-(defgeneric fire-turret (turret game position))
+(defgeneric fire-turret (turret game))
 
 ;; all are in units
 (defparameter *room-width* 50)
@@ -88,7 +91,7 @@
 (defparameter *door-width* 2)
 
 (defparameter *power-deduction-wait-time* 3.5) ;; seconds
-(defconstant *max-turrets-in-room* 16)
+(defconstant *max-turrets-in-room* 32)
 
 ;; Should I lerp animate the door?
 (defclass game-room ()
@@ -102,6 +105,8 @@
                                   :adjustable nil
                                   :fill-pointer 0))))
 (defclass danger-room (game-room) ())
+(defclass danger-room-b (danger-room) ())
+(defclass danger-room-c (danger-room) ())
 (defclass entrance-room (game-room) ())
 (defclass breach-entrance-room (game-room) ())
 
@@ -162,6 +167,15 @@
    (size :accessor size
          :initarg :size
          :initform (vec2 3.5 4.55))))
+
+(defclass ball-f (enemy)
+  ((health :accessor health
+           :initarg :health
+           :initform (ranged 0 250 :max))))
+(defclass eye-droid (enemy)
+  ((health :accessor health
+           :initarg :health
+           :initform (ranged 0 56 :max))))
 
 (defun hurt-enemy (enemy amount)
   (ranged-value-decf (health enemy) amount))

@@ -15,6 +15,7 @@
     (setf (barrier-door-open room) t)))
 
 (defmethod toggle-door ((room game-room))
+  (play-sound *close-door-sound*)
   (if (barrier-door-open room)
       (close-door room)
       (open-door room)))
@@ -83,7 +84,7 @@
                                         (unit room-y)
                                         (unit *door-width*)
                                         (unit (- *room-max-height* 1)))
-                             +color-green+))))
+                             (color 255 255 0 100)))))
 
 (defmethod draw-room ((room danger-room) renderer x y)
   (let ((room-x (* *room-width* x))
@@ -97,6 +98,35 @@
                   :dest (rectangle (unit (+ room-x 35)) (unit (+ room-y 14)) (* 64 5) (* 64 5))) 
     ;; TODO make head float up and down
     (draw-texture renderer (getf *player-faces* :neutral)
+              :dest (rectangle (unit (+ room-x 35)) (unit (+ room-y 9)) (* 64 5) (* 64 5)))))
+
+(defmethod draw-room ((room danger-room-b) renderer x y)
+  (let ((room-x (* *room-width* x))
+        (room-y (* *room-max-height* y)))
+    (draw-texture renderer (getf *room-images* :danger-zone-b)
+                  :dest (rectangle (unit room-x) (unit room-y)
+                                   (unit *room-width*)
+                                   (unit *room-max-height*)))
+
+    (draw-texture renderer *player-base*
+                  :dest (rectangle (unit (+ room-x 35)) (unit (+ room-y 14)) (* 64 5) (* 64 5))) 
+    ;; TODO make head float up and down
+    (draw-texture renderer (getf *player-faces* :morpheous)
+              :dest (rectangle (unit (+ room-x 35)) (unit (+ room-y 9)) (* 64 5) (* 64 5)))))
+
+
+(defmethod draw-room ((room danger-room-c) renderer x y)
+  (let ((room-x (* *room-width* x))
+        (room-y (* *room-max-height* y)))
+    (draw-texture renderer (getf *room-images* :danger-zone-c)
+                  :dest (rectangle (unit room-x) (unit room-y)
+                                   (unit *room-width*)
+                                   (unit *room-max-height*)))
+
+    (draw-texture renderer *player-base*
+                  :dest (rectangle (unit (+ room-x 35)) (unit (+ room-y 14)) (* 64 5) (* 64 5))) 
+    ;; TODO make head float up and down
+    (draw-texture renderer (getf *player-faces* :omega)
               :dest (rectangle (unit (+ room-x 35)) (unit (+ room-y 9)) (* 64 5) (* 64 5)))))
 
 (defmethod draw-room ((room entrance-room) renderer x y)

@@ -35,6 +35,11 @@
   (ranged-value-decf (health player) *enemy-default-attack-damage*)
   (setf (attack-cooldown enemy) *enemy-default-attack-cooldown*))
 
+(defmethod enemy-attack ((enemy eye-droid) player)
+  (play-sound (get-random-from-list *hurt-sounds*))
+  (ranged-value-decf (health player) 2)
+  (setf (attack-cooldown enemy) 0.15))
+
 (defmethod update-enemy ((enemy enemy) (game game) delta-time)
   (with-room ((location-room-position->vec2 (location enemy)) room)
              ;; handle collision with room stuff here.
@@ -52,14 +57,44 @@
              (align-enemy-to-room-floor enemy)
              (find-current-room-for-enemy enemy game)))
 
+(defun enemy-type->keyword (type)
+  (case type
+    ('eye-droid :eye-droid)
+    ('enemy :bad-rob)
+    ('ball-f :ball-f)))
+
+;; (defmethod draw-enemy ((enemy eye-droid) (renderer renderer))
+;;   (let ((x (location-x (location enemy)))
+;;         (y (location-y (location enemy)))
+;;         (w (vec2-x (size enemy)))
+;;         (h (vec2-y (size enemy))))
+;;     (draw-texture renderer
+;;                   (getf *enemy-images*
+;;                         :eye-droid
+;;                         #+-(enemy-type->keyword (type-of enemy)))
+;;                   :dest (rectangle x y w h))))
+
+;; (defmethod draw-enemy ((enemy ball-f) (renderer renderer))
+;;   (let ((x (location-x (location enemy)))
+;;         (y (location-y (location enemy)))
+;;         (w (vec2-x (size enemy)))
+;;         (h (vec2-y (size enemy))))
+;;     (draw-texture renderer
+;;                   (getf *enemy-images*
+;;                         :eye-droid
+;;                         #+-(enemy-type->keyword (type-of enemy)))
+;;                   :dest (rectangle x y w h))))
+
+
 (defmethod draw-enemy ((enemy enemy) (renderer renderer))
   (let ((x (location-x (location enemy)))
         (y (location-y (location enemy)))
         (w (vec2-x (size enemy)))
         (h (vec2-y (size enemy))))
-    (draw-filled-rectangle renderer 
-                           (rectangle (unit x)
-                                      (unit y)
-                                      (unit w)
-                                      (unit h))
-                           +color-black+)))
+    (draw-texture renderer
+                  ;; (getf *turret-images* :standard)
+                  (getf *enemy-images* (enemy-type->keyword (type-of enemy)))
+                  :dest (rectangle (unit x)
+                                   (unit y)
+                                   (unit w)
+                                   (unit h)))))

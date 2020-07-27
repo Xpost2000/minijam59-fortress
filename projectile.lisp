@@ -3,8 +3,8 @@
 (defun projectile-get-bounding-box (projectile)
   (let ((x (vec2-x (projectile-position projectile)))
         (y (vec2-y (projectile-position projectile)))
-        (w 2)
-        (h 2))
+        (w 1.25)
+        (h 1.25))
     (rectangle x
                y
                w
@@ -13,14 +13,10 @@
 (defmethod draw-projectile ((projectile projectile) (renderer renderer))
   (let ((x (vec2-x (projectile-position projectile)))
         (y (vec2-y (projectile-position projectile)))
-        (w 2)
-        (h 2))
-    (draw-filled-rectangle renderer 
-                           (rectangle (unit x)
-                                      (unit y)
-                                      (unit w)
-                                      (unit h))
-                               (color 255 255 255 255))))
+        (w 1.25)
+        (h 1.25))
+    (draw-texture renderer *projectile-image*
+                  :dest (rectangle (unit x) (unit y) (unit w) (unit h)))))
 
 (defun find-current-room-for-projectile (projectile game)
   (dotimes (y 3)
@@ -78,5 +74,6 @@
 
 (defmethod hit-projectile ((projectile projectile) game (thing enemy))
   (print "hit baddie")
+  (play-sound (get-random-from-list *explosion-sounds*))
   (ranged-value-decf (health thing) 25)
   (projectile-kill projectile))

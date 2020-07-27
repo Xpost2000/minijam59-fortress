@@ -49,6 +49,9 @@
      (sdl2-ttf:init)
      (sdl2-mixer:init :ogg :mod :modplug)
      (sdl2-mixer:open-audio 22050 :s16sys 2 2048)
+     ;; please no crashu
+     ;; sdl2mixer appears to error if I play too much audio!
+     (sdl2-mixer:allocate-channels 96)
      ,@body
      (sdl2-mixer:close-audio)
      (sdl2-mixer:quit)
