@@ -47,7 +47,7 @@
 (defvar *wave-finished-sound*)
 
 ;; should change every round or so?
-(defconstant +default-enemy-spawn-cooldown+ 2.5)
+(defconstant +default-enemy-spawn-cooldown+ 3.5) ;; I hope it's fair.
 
 (defclass game (window)
   ((camera :accessor game-camera
@@ -587,14 +587,31 @@
 
   (draw-minimap game (renderer game) (vec2 1020 10))
 
+  (draw-string (renderer game)
+               (format nil "ROUND : ~a" (current-round game))
+               *game-font*
+               (vec2 20 80)
+               :size 40)
+
   (if (round-started game)
       (draw-string (renderer game)
-                   (format nil "(~a, ~a)"
-                           (ranged-value-current (energy (player game)))
-                           (ranged-value-max (energy (player game))))
+                   (format nil "ENEMIES TO SPAWN:~a" (remaining-enemies-to-spawn game))
                    *game-font*
-                   (vec2 20 55)
-                   :size 24))
+                   (vec2 560 130)
+                   :size 40)
+      (draw-string (renderer game)
+                   "Press SPACE to start round"
+                   *game-font*
+                   (vec2 410 130)
+                   :size 40))
+
+  (draw-string (renderer game)
+               (format nil "(~a, ~a)"
+                       (ranged-value-current (energy (player game)))
+                       (ranged-value-max (energy (player game))))
+               *game-font*
+               (vec2 20 55)
+               :size 24)
 
   (draw-string (renderer game)
                (format nil "room (~a, ~a)"
@@ -613,18 +630,6 @@
                *game-font*
                (vec2 700 45)
                :size 40)
-
-  (with-room ((location (player game)) room)
-             (draw-string (renderer game)
-                          (write-to-string (aref (turrets room) 0))
-                          *game-font*
-                          (vec2 0 518)
-                          :size 16)
-             (draw-string (renderer game)
-                          (write-to-string (length (turrets room)))
-                          *game-font*
-                          (vec2 0 534)
-                          :size 16))
 
   (when (player-dead-p (player game))
     (start-fade (fader game)
